@@ -1,0 +1,392 @@
+---
+description: 
+globs: src/hooks/use-keyboard-*.ts,src/components/**/*keyboard*.tsx
+alwaysApply: false
+---
+---
+description: Keyboard navigation and interaction patterns for MapItOut
+type: auto_attached
+globs: ["src/hooks/use-keyboard-*.ts", "src/components/**/*keyboard*.tsx"]
+---
+
+# Keyboard Interaction Patterns
+
+## Primary Keyboard Shortcuts
+
+| Key | Action | Context |
+|-----|--------|---------|
+| `Tab` | Create child node | Node selected |
+| `Shift + Space` | Create sibling node | Node selected |
+| `Enter` | Start/stop text editing | Node selected |
+| `Escape` | Exit edit mode | Text editing |
+| `Delete` | Delete node | Node selected (non-root) |
+| `Arrow Keys` | Navigate nodes | Node selected |
+| `+` / `-` | Zoom in/out | Global |
+| `Space` | Pan mode toggle | Global |
+
+## Main Keyboard Handler
+
+```typescript
+function useKeyboardNavigation() {
+  const { 
+    selectedId, 
+    nodes, 
+    createNode, 
+    updateNode, 
+    deleteNode, 
+    selectNode 
+  } = useMapStore();
+  
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Don't handle keyboard shortcuts if user is editing text
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      handleEditingKeyDown(event);
+      return;
+    }
+    
+    // Global shortcuts (always available)
+    if (handleGlobalShortcuts(event)) {
+      return;
+    }
+    
+    // Node-specific shortcuts (require selected node)
+    if (selectedId) {
+      handleNodeShortcuts(event, selectedId);
+    }
+  }, [selectedId, editingNodeId]);
+  
+  const handleGlobalShortcuts = useCallback((event: KeyboardEvent) => {
+    switch (event.key) {
+      case '+':
+      case '=':
+        event.preventDefault();
+        zoomIn();
+        return true;
+        
+      case '-':
+      case '_':
+        event.preventDefault();
+        zoomOut();
+        return true;
+        
+      case ' ':
+        event.preventDefault();
+        togglePanMode();
+        return true;
+        
+      default:
+        return false;
+    }
+  }, []);
+  
+  const handleNodeShortcuts = useCallback((event: KeyboardEvent, nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node) return;
+    
+    switch (event.key) {
+      case 'Tab':
+        event.preventDefault();
+        createChildNode(nodeId);
+        break;
+        
+      case ' ':
+        if (event.shiftKey) {
+          event.preventDefault();
+          createSiblingNode(nodeId);
+        }
+        break;
+        
+      case 'Enter':
+        event.preventDefault();
+        startEditing(nodeId);
+        break;
+        
+      case 'Delete':
+      case 'Backspace':
+        event.preventDefault();
+        if (node.tier > 0) { // Don't delete root node
+          deleteNode(nodeId);
+        }
+        break;
+        
+      case 'ArrowUp':
+        event.preventDefault();
+        navigateUp(nodeId);
+        break;
+        
+      case 'ArrowDown':
+        event.preventDefault();
+        navigateDown(nodeId);
+        break;
+        
+      case 'ArrowLeft':
+        event.preventDefault();
+        navigateLeft(nodeId);
+        break;
+        
+      case 'ArrowRight':
+        event.preventDefault();
+        navigateRight(nodeId);
+        break;
+    }
+  }, [nodes, createNode, deleteNode, selectNode]);
+  
+  const handleEditingKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!editingNodeId) return;
+    
+    switch (event.key) {
+      case 'Enter':
+        if (!event.shiftKey) {
+          event.preventDefault();
+          stopEditing();
+        }
+        // Shift+Enter creates new line (default behavior)
+        break;
+        
+      case 'Escape':
+        event.preventDefault();
+        stopEditing();
+        break;
+        
+      case 'Tab':
+        event.preventDefault();
+        stopEditing();
+        createChildNode(editingNodeId);
+        break;
+    }
+  }, [editingNodeId]);
+  
+  return {
+    handleKeyDown,
+    editingNodeId,
+    setEditingNodeId,
+  };
+}
+```
+
+## Navigation Logic
+
+```typescript
+function useNodeNavigation() {
+  const { nodes, selectedId, selectNode } = useMapStore();
+  
+  const navigateUp = useCallback((nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node || !node.parentId) return;
+    
+    const parent = nodes.get(node.parentId);
+    if (!parent) return;
+    
+    // Find current node's index among siblings
+    const currentIndex = parent.children.indexOf(nodeId);
+    if (currentIndex > 0) {
+      // Select previous sibling
+      selectNode(parent.children[currentIndex - 1]);
+    } else {
+      // Select parent if no previous sibling
+      selectNode(node.parentId);
+    }
+  }, [nodes, selectNode]);
+  
+  const navigateDown = useCallback((nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node) return;
+    
+    if (node.children.length > 0) {
+      // Select first child
+      selectNode(node.children[0]);
+    } else if (node.parentId) {
+      // Select next sibling
+      const parent = nodes.get(node.parentId);
+      if (parent) {
+        const currentIndex = parent.children.indexOf(nodeId);
+        if (currentIndex < parent.children.length - 1) {
+          selectNode(parent.children[currentIndex + 1]);
+        }
+      }
+    }
+  }, [nodes, selectNode]);
+  
+  const navigateLeft = useCallback((nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node || !node.parentId) return;
+    
+    // Select parent
+    selectNode(node.parentId);
+  }, [nodes, selectNode]);
+  
+  const navigateRight = useCallback((nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node || node.children.length === 0) return;
+    
+    // Select first child
+    selectNode(node.children[0]);
+  }, [nodes, selectNode]);
+  
+  return {
+    navigateUp,
+    navigateDown,
+    navigateLeft,
+    navigateRight,
+  };
+}
+```
+
+## Node Creation Logic
+
+```typescript
+function useNodeCreation() {
+  const { nodes, createNode, selectNode } = useMapStore();
+  
+  const createChildNode = useCallback((parentId: string) => {
+    const parent = nodes.get(parentId);
+    if (!parent) return;
+    
+    // Create new child node
+    createNode(parentId, 'New Node');
+    
+    // The store action will automatically select the new node
+    // and trigger text editing mode
+  }, [nodes, createNode]);
+  
+  const createSiblingNode = useCallback((siblingId: string) => {
+    const sibling = nodes.get(siblingId);
+    if (!sibling || !sibling.parentId) return;
+    
+    // Create new sibling node
+    createNode(sibling.parentId, 'New Node');
+  }, [nodes, createNode]);
+  
+  return {
+    createChildNode,
+    createSiblingNode,
+  };
+}
+```
+
+## Text Editing Logic
+
+```typescript
+function useTextEditing() {
+  const { nodes, updateNode } = useMapStore();
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  
+  const startEditing = useCallback((nodeId: string) => {
+    const node = nodes.get(nodeId);
+    if (!node) return;
+    
+    setEditingNodeId(nodeId);
+    setEditingText(node.text);
+    
+    // Focus the input after a brief delay
+    setTimeout(() => {
+      const input = document.querySelector(`[data-node-id="${nodeId}"] input`);
+      if (input instanceof HTMLInputElement) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }, [nodes]);
+  
+  const stopEditing = useCallback(() => {
+    if (!editingNodeId) return;
+    
+    // Save the text if it's changed
+    const node = nodes.get(editingNodeId);
+    if (node && editingText !== node.text) {
+      updateNode(editingNodeId, { text: editingText });
+    }
+    
+    setEditingNodeId(null);
+    setEditingText('');
+  }, [editingNodeId, editingText, nodes, updateNode]);
+  
+  const handleTextChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingText(event.target.value);
+  }, []);
+  
+  return {
+    editingNodeId,
+    editingText,
+    startEditing,
+    stopEditing,
+    handleTextChange,
+  };
+}
+```
+
+## Event Listener Setup
+
+```typescript
+function useGlobalKeyboardListeners() {
+  const { handleKeyDown } = useKeyboardNavigation();
+  
+  useEffect(() => {
+    // Add global keyboard listener
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+}
+```
+
+## Focus Management
+
+```typescript
+function useFocusManagement() {
+  const { selectedId } = useMapStore();
+  
+  useEffect(() => {
+    if (selectedId) {
+      // Ensure selected node is visible and focused
+      const nodeElement = document.querySelector(`[data-node-id="${selectedId}"]`);
+      if (nodeElement) {
+        nodeElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest' 
+        });
+        
+        // Set focus for keyboard navigation
+        if (nodeElement instanceof HTMLElement) {
+          nodeElement.focus();
+        }
+      }
+    }
+  }, [selectedId]);
+}
+```
+
+## Accessibility Support
+
+```typescript
+// Add ARIA attributes and keyboard navigation hints
+function NodeComponent({ node, isSelected }: NodeComponentProps) {
+  return (
+    <div
+      data-node-id={node.id}
+      role="treeitem"
+      aria-selected={isSelected}
+      aria-expanded={node.children.length > 0}
+      aria-level={node.tier + 1}
+      tabIndex={isSelected ? 0 : -1}
+      className={`node ${isSelected ? 'selected' : ''}`}
+    >
+      {node.text}
+      
+      {/* Keyboard hints for selected node */}
+      {isSelected && (
+        <div className="sr-only">
+          Press Tab to create child, Shift+Space for sibling, Enter to edit
+        </div>
+      )}
+    </div>
+  );
+}
+
+```

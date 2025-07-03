@@ -1,0 +1,195 @@
+---
+description: 
+globs: src/components/**/*.tsx,src/hooks/**/*.ts
+alwaysApply: false
+---
+---
+description: React and TypeScript patterns for MapItOut components
+type: auto_attached
+globs: ["src/components/**/*.tsx", "src/hooks/**/*.ts"]
+---
+
+# React + TypeScript Patterns for MapItOut
+
+## Component Patterns
+
+**Functional Components Only:**
+```typescript
+interface NodeComponentProps {
+  node: Node;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onEdit: (id: string) => void;
+}
+
+function NodeComponent({ node, isSelected, onSelect, onEdit }: NodeComponentProps) {
+  // Component logic
+}
+```
+
+**Custom Hooks Pattern:**
+```typescript
+function useKeyboardNavigation() {
+  const selectNode = useMapStore(state => state.selectNode);
+  const selectedId = useMapStore(state => state.selectedId);
+  
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Keyboard logic
+  }, [selectNode]);
+  
+  return { handleKeyDown };
+}
+```
+
+## TypeScript Best Practices
+
+- **Use interfaces over types** for object shapes
+- **Avoid enums** - use const objects or literal types
+- **Strict mode enabled** in tsconfig.json
+- **No any types** - use unknown for flexible types
+- **Proper null checks** - use optional chaining
+
+```typescript
+// Good: Const object instead of enum
+const NODE_CATEGORIES = {
+  CENTRAL: 0,
+  PRIMARY: 1,
+  SECONDARY: 2,
+  SUPPORTING: 3,
+  SPECIALIZED: 4,
+  ADDITIONAL: 5,
+} as const;
+
+type NodeCategory = typeof NODE_CATEGORIES[keyof typeof NODE_CATEGORIES];
+```
+
+## React Performance Patterns
+
+**Memoization:**
+```typescript
+const NodeComponent = React.memo(({ node, isSelected, onSelect }: NodeComponentProps) => {
+  const handleClick = useCallback(() => {
+    onSelect(node.id);
+  }, [node.id, onSelect]);
+  
+  return (
+    <div onClick={handleClick}>
+      {node.text}
+    </div>
+  );
+});
+```
+
+**Avoid Inline Functions:**
+```typescript
+// Bad
+<button onClick={() => handleClick(node.id)}>
+
+// Good
+const handleClick = useCallback(() => {
+  onSelect(node.id);
+}, [node.id, onSelect]);
+```
+
+## Event Handling
+
+**Keyboard Events:**
+```typescript
+const handleKeyDown = useCallback((event: KeyboardEvent) => {
+  // Prevent default for handled keys
+  if (['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+    event.preventDefault();
+  }
+  
+  // Don't handle if user is editing text
+  if (event.target instanceof HTMLInputElement) {
+    return;
+  }
+  
+  switch (event.key) {
+    case 'Tab':
+      createChildNode();
+      break;
+    case 'Enter':
+      startEditing();
+      break;
+  }
+}, [createChildNode, startEditing]);
+```
+
+## Error Handling
+
+**Error Boundaries:**
+```typescript
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{}>,
+  ErrorBoundaryState
+> {
+  constructor(props: React.PropsWithChildren<{}>) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} />;
+    }
+    
+    return this.props.children;
+  }
+}
+```
+
+## Naming Conventions
+
+- **Components**: PascalCase (NodeComponent, CanvasLayer)
+- **Hooks**: camelCase with "use" prefix (useKeyboardNavigation)
+- **Props**: camelCase with descriptive names (isSelected, onNodeSelect)
+- **Event Handlers**: "handle" prefix (handleKeyDown, handleNodeClick)
+- **Boolean Props**: "is", "has", "can" prefixes (isEditing, hasChildren)
+
+## File Structure
+
+```typescript
+// Component file structure
+// 1. Imports
+// 2. Interfaces
+// 3. Component
+// 4. Subcomponents
+// 5. Helpers
+// 6. Export
+
+import React, { useCallback, useMemo } from 'react';
+import { Node } from '../types';
+
+interface NodeComponentProps {
+  node: Node;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}
+
+function NodeComponent({ node, isSelected, onSelect }: NodeComponentProps) {
+  // Main component logic
+}
+
+function NodeText({ text, isEditing }: { text: string; isEditing: boolean }) {
+  // Subcomponent
+}
+
+// Helper functions
+function calculateNodeWidth(text: string): number {
+  // Helper logic
+}
+
+export { NodeComponent };
+
+```

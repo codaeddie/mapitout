@@ -1,0 +1,115 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Core MapItOut development guidelines and architecture patterns
+type: always
+---
+
+# MapItOut Core Development Rules
+
+You are building MapItOut, a professional mind mapping tool for creating structured knowledge graphs with cybersecurity/technical aesthetics.
+
+## Project Context
+
+**Target**: Interactive mind mapping tool with keyboard-driven creation, automatic layout, and PNG export
+**Tech Stack**: React 18, TypeScript, Vite, Tailwind CSS, Zustand, HTML5 Canvas
+**Visual Style**: Dark theme, structured radial layouts, professional color coding
+
+## Core Architecture
+
+**Hybrid Rendering Approach:**
+- Canvas Layer: Connection lines and visual effects
+- DOM Layer: Node elements for text editing and interactions
+- Coordinate System: Consistent mapping between Canvas (SVG coords) and DOM (CSS positioning)
+
+**State Management Pattern:**
+```typescript
+interface MapState {
+  nodes: Map<string, Node>;
+  selectedId: string | null;
+  viewBox: { x: number; y: number; width: number; height: number };
+  
+  // Actions return void, update state directly
+  createNode: (parentId: string, text?: string) => void;
+  updateNode: (id: string, updates: Partial<Node>) => void;
+  selectNode: (id: string) => void;
+}
+```
+
+## Node Data Structure
+
+```typescript
+interface Node {
+  id: string;              // nanoid() generated
+  text: string;            // User-visible text
+  x: number;               // Canvas X coordinate
+  y: number;               // Canvas Y coordinate
+  parentId: string | null; // null for root node
+  children: string[];      // Array of child node IDs
+  tier: number;            // Depth level (0 = root)
+  category: number;        // Color category (0-5)
+  isEditing: boolean;      // Text editing state
+}
+```
+
+## Color System
+
+```typescript
+const NODE_COLORS = {
+  0: '#f97316', // Orange - Central/Primary
+  1: '#ef4444', // Red - High Priority
+  2: '#3b82f6', // Blue - Secondary
+  3: '#10b981', // Green - Supporting
+  4: '#8b5cf6', // Purple - Specialized
+  5: '#f59e0b', // Amber - Additional
+} as const;
+```
+
+## Keyboard Shortcuts (Primary Interface)
+
+- `Tab`: Create child node
+- `Shift + Space`: Create sibling node
+- `Enter`: Start/stop text editing
+- `Escape`: Exit edit mode
+- `Arrow Keys`: Navigate between nodes
+- `Delete`: Delete selected node
+
+## Performance Requirements
+
+- **60fps rendering** with 100+ nodes
+- **< 100ms response time** for all interactions
+- **Virtualization** for large node counts
+- **Debounced updates** for expensive operations
+
+## File Structure
+
+```
+src/
+├── components/
+│   ├── canvas/           # Canvas rendering components
+│   ├── nodes/            # Node-related components
+│   └── ui/               # UI controls and toolbar
+├── hooks/
+│   ├── use-keyboard-navigation.ts
+│   ├── use-node-positioning.ts
+│   └── use-canvas-rendering.ts
+├── stores/
+│   └── map-store.ts      # Zustand store
+├── types/
+│   └── index.ts          # All TypeScript interfaces
+└── utils/
+    ├── positioning.ts    # Layout algorithms
+    ├── export.ts         # PNG export logic
+    └── validation.ts     # Input validation
+```
+
+## Development Priorities
+
+1. **Keyboard Navigation First** - All functionality accessible via keyboard
+2. **Performance** - Smooth 60fps interactions
+3. **Visual Consistency** - Professional technical aesthetic
+
+4. **Export Quality** - High DPI PNG suitable for presentations

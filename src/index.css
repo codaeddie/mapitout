@@ -1,0 +1,58 @@
+/* MapItOut - Professional Mind Mapping Tool Styles */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles for dark theme */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-slate-900 text-slate-100;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .node-base {
+    @apply absolute transform -translate-x-1/2 -translate-y-1/2 
+           px-3 py-2 rounded-lg border-2 cursor-pointer
+           transition-all duration-200 ease-in-out
+           hover:shadow-lg hover:scale-105;
+  }
+  
+  .node-selected {
+    @apply border-white shadow-lg scale-105;
+  }
+  
+  .node-category-0 { @apply border-node-orange bg-node-orange/10; }
+  .node-category-1 { @apply border-node-red bg-node-red/10; }
+  .node-category-2 { @apply border-node-blue bg-node-blue/10; }
+  .node-category-3 { @apply border-node-green bg-node-green/10; }
+  .node-category-4 { @apply border-node-purple bg-node-purple/10; }
+  .node-category-5 { @apply border-node-amber bg-node-amber/10; }
+  
+  .canvas-container {
+    @apply relative w-full h-full overflow-hidden
+           bg-slate-900 bg-circuit-pattern;
+  }
+  
+  .connection-line {
+    @apply stroke-slate-500 stroke-2 fill-none opacity-80;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+  
+  .glow {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+}
