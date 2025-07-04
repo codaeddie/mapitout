@@ -16,6 +16,12 @@ interface UIStore extends UIState {
   toggleHelp: () => void;
   setExportProgress: (progress: number) => void;
   resetUI: () => void;
+  // Node dragging
+  draggedNodeId: string | null;
+  dragStartPos: { x: number; y: number } | null;
+  startDragging: (nodeId: string, startPos: { x: number; y: number }) => void;
+  updateDragOffset: (offset: { x: number; y: number }) => void;
+  stopDragging: () => void;
 }
 
 const useUIStore = create<UIStore>((set) => ({
@@ -24,6 +30,8 @@ const useUIStore = create<UIStore>((set) => ({
   isPanning: false,
   showHelp: false,
   exportProgress: 0,
+  draggedNodeId: null,
+  dragStartPos: null,
 
   // Actions
   setDragging: (isDragging: boolean, offset?: { x: number; y: number }) => {
@@ -52,7 +60,20 @@ const useUIStore = create<UIStore>((set) => ({
       isPanning: false,
       showHelp: false,
       exportProgress: 0,
+      draggedNodeId: null,
+      dragStartPos: null,
     });
+  },
+
+  // Node dragging
+  startDragging: (nodeId, startPos) => {
+    set({ isDragging: true, draggedNodeId: nodeId, dragStartPos: startPos, dragOffset: { x: 0, y: 0 } });
+  },
+  updateDragOffset: (offset) => {
+    set({ dragOffset: offset });
+  },
+  stopDragging: () => {
+    set({ isDragging: false, draggedNodeId: null, dragStartPos: null, dragOffset: { x: 0, y: 0 } });
   },
 }));
 

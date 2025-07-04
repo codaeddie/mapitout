@@ -1,144 +1,169 @@
 /**
- * MapItOut Main Canvas Component
- * 
- * This component serves as the main canvas for the mind mapping tool.
- * Combines connection and node layers, handles canvas interactions,
- * and manages the overall mind map display and interactions.
- * 
- * Update when: Modifying canvas structure, adding new interaction layers, or changing canvas behavior.
+ * MapCanvas.tsx
+ *
+ * Main container for the MapItOut mind map. Combines ConnectionLayer and NodeLayer.
+ * Manages viewport and zoom transforms, and handles mouse events for pan, zoom, node selection, and node dragging.
+ *
+ * Update when: Modifying canvas structure, viewport logic, or event handling.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useMapStore } from '../stores';
-import { useKeyboardNavigation } from '../hooks';
-import { ConnectionLayer, NodeLayer } from './canvas';
-import { useVirtualizedNodes } from '../hooks/use-node-positioning';
+import React, { useRef, useState, useCallback } from 'react';
+import useMapStore from '../stores/map-store';
+import useUIStore from '../stores/ui-store';
+import { ConnectionLayer } from './canvas/ConnectionLayer';
+import { NodeLayer } from './canvas/NodeLayer';
+import type { ViewBox } from '../types';
 
+const CANVAS_WIDTH = 1600;
+const CANVAS_HEIGHT = 1200;
 
 export const MapCanvas: React.FC = () => {
-  const { 
-    nodes, 
-    rootId, 
-    selectedId, 
-    createNode, 
+  const {
+    nodes,
+    connections,
+    viewBox,
     zoomLevel,
-    setZoom
+    selectedId,
+    selectNode,
+    setViewBox,
+    setZoom,
+    updateNodePosition,
   } = useMapStore();
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1200 });
-  const [isInitialized, setIsInitialized] = useState(false);
-  const visibleNodes = useVirtualizedNodes(); // For debugging virtualization
+  const {
+    isDragging,
+    draggedNodeId,
+    dragStartPos,
+    dragOffset,
+    startDragging,
+    updateDragOffset,
+    stopDragging,
+  } = useUIStore();
 
-  // Initialize keyboard navigation
-  useKeyboardNavigation();
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef<{ x: number; y: number } | null>(null);
+  const viewBoxStart = useRef<ViewBox | null>(null);
 
-  // Initialize root node if none exists
-  useEffect(() => {
-    if (!rootId && nodes.size === 0) {
-      createNode('', 'Central Topic');
-      setIsInitialized(true);
-    } else if (rootId) {
-      setIsInitialized(true);
+  // Node drag start
+  const handleNodeDragStart = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault(); // Prevent text selection
+    if (e.button !== 0) return;
+    const node = nodes.get(nodeId);
+    if (!node) return;
+    startDragging(nodeId, { x: e.clientX, y: e.clientY });
+    selectNode(nodeId);
+  };
+
+  // Mouse down to start panning (only if not dragging and not on a node)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if (isDragging) return;
+    // Only start panning if not clicking on a node
+    // Check for data-node-id attribute in event target
+    let el = e.target as HTMLElement;
+    while (el && el !== e.currentTarget) {
+      if (el.hasAttribute('data-node-id')) return;
+      el = el.parentElement as HTMLElement;
     }
-  }, [rootId, nodes.size, createNode]);
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY };
+    viewBoxStart.current = { ...viewBox };
+  };
 
-  // Handle canvas resize
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      if (canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        setCanvasSize({
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-    };
+  // Mouse move to pan or drag
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && draggedNodeId && dragStartPos) {
+      e.preventDefault(); // Prevent text selection
+      const node = nodes.get(draggedNodeId);
+      if (!node) return;
+      const dx = (e.clientX - dragStartPos.x) / zoomLevel;
+      const dy = (e.clientY - dragStartPos.y) / zoomLevel;
+      updateDragOffset({ x: dx, y: dy });
+      // Live update node position visually
+      updateNodePosition(draggedNodeId, node.x + dx, node.y + dy);
+      return;
+    }
+    if (!isDragging && isPanning && panStart.current && viewBoxStart.current) {
+      const dx = (e.clientX - panStart.current.x) / zoomLevel;
+      const dy = (e.clientY - panStart.current.y) / zoomLevel;
+      setViewBox({
+        ...viewBoxStart.current,
+        x: viewBoxStart.current.x - dx,
+        y: viewBoxStart.current.y - dy,
+      });
+    }
+  };
 
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
-  }, []);
+  // Mouse up to end panning or dragging
+  const handleMouseUp = () => {
+    if (isDragging && draggedNodeId) {
+      stopDragging();
+    }
+    setIsPanning(false);
+    panStart.current = null;
+    viewBoxStart.current = null;
+  };
 
-  // Handle zoom with mouse wheel
+  // Mouse wheel to zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(3, zoomLevel * delta));
-    
-    if (newZoom !== zoomLevel) {
-      setZoom(newZoom);
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom(zoomLevel + delta);
+  };
+
+  // Click background to deselect
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      selectNode('');
     }
   };
 
-  // Handle canvas click to create root node if needed
-  const handleCanvasClick = () => {
-    if (!isInitialized && nodes.size === 0) {
-      createNode('', 'Central Topic');
-    }
-  };
+  // Node selection handler
+  const handleNodeSelect = useCallback((id: string) => {
+    selectNode(id);
+  }, [selectNode]);
 
-  if (!isInitialized) {
-    return (
-      <div
-        ref={canvasRef}
-        className="canvas-container w-full h-full"
-        onClick={handleCanvasClick}
-      >
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-slate-400">
-            <h2 className="text-xl font-semibold mb-2">MapItOut</h2>
-            <p className="text-sm">Click anywhere to create your first node</p>
-            <p className="text-xs mt-2 text-slate-500">
-              Use Tab to create child nodes • Enter to edit • Arrow keys to navigate
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Transform style for zoom and pan
+  const transform = `scale(${zoomLevel}) translate(${-viewBox.x}px, ${-viewBox.y}px)`;
 
   return (
     <div
-      ref={canvasRef}
-      className="canvas-container w-full h-full relative overflow-hidden"
+      className={`relative w-full h-full bg-gray-900 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : ''}`}
+      style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
-      style={{
-        transform: `scale(${zoomLevel})`,
-        transformOrigin: 'center center',
-      }}
+      onClick={handleBackgroundClick}
+      tabIndex={0}
     >
-      {/* Connection Layer (SVG) */}
-      <ConnectionLayer
-        width={canvasSize.width}
-        height={canvasSize.height}
-      />
-
-      {/* Node Layer (DOM) */}
-      <NodeLayer
-        width={canvasSize.width}
-        height={canvasSize.height}
-      />
-
-      {/* Zoom indicator */}
-      {zoomLevel !== 1 && (
-        <div className="absolute top-4 right-4 bg-slate-800/80 text-white px-2 py-1 rounded text-xs">
-          {Math.round(zoomLevel * 100)}%
-        </div>
-      )}
-
-      {/* Node count indicator */}
-      <div className="absolute bottom-4 left-4 bg-slate-800/80 text-white px-2 py-1 rounded text-xs">
-        {nodes.size} node{nodes.size !== 1 ? 's' : ''} ({visibleNodes.size} visible)
+      <div
+        className="absolute left-0 top-0"
+        style={{
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          transform,
+          transformOrigin: 'top left',
+          pointerEvents: 'auto', // Allow pointer events to reach nodes
+        }}
+      >
+        <ConnectionLayer
+          connections={connections}
+          nodes={nodes}
+          viewBox={viewBox}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+        />
+        <NodeLayer
+          nodes={nodes}
+          selectedId={selectedId}
+          onSelect={handleNodeSelect}
+          onDragStart={handleNodeDragStart}
+          draggedNodeId={draggedNodeId}
+        />
       </div>
-
-      {/* Selection indicator */}
-      {selectedId && (
-        <div className="absolute bottom-4 right-4 bg-slate-800/80 text-white px-2 py-1 rounded text-xs">
-          Selected: {nodes.get(selectedId)?.text || 'Unknown'}
-        </div>
-      )}
     </div>
   );
 }; 

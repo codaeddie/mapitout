@@ -1,8 +1,6 @@
 /* MapItOut - Professional Mind Mapping Tool Styles */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Base styles for dark theme */
 @layer base {
@@ -11,7 +9,7 @@
   }
   
   body {
-    @apply bg-slate-900 text-slate-100;
+    @apply bg-gray-900 text-gray-100;
     font-family: 'Inter', system-ui, sans-serif;
   }
 }
@@ -38,11 +36,11 @@
   
   .canvas-container {
     @apply relative w-full h-full overflow-hidden
-           bg-slate-900 bg-circuit-pattern;
+           bg-gray-900 bg-circuit-pattern;
   }
   
   .connection-line {
-    @apply stroke-slate-500 stroke-2 fill-none opacity-80;
+    @apply stroke-gray-500 stroke-2 fill-none opacity-80;
   }
 }
 

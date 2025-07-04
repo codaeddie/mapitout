@@ -48,6 +48,7 @@ export interface MapState {
   selectNode: (id: string) => void;
   setZoom: (level: number) => void;
   setViewBox: (viewBox: ViewBox) => void;
+  updateNodePosition: (id: string, x: number, y: number) => void;
 }
 
 export interface UIState {

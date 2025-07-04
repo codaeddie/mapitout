@@ -1,60 +1,60 @@
 /**
- * MapItOut Node Layer Component
- * 
- * This component renders all nodes in the mind map with proper positioning.
- * Handles node selection, editing, and interaction events.
- * 
- * Update when: Modifying node rendering logic, adding new interaction behaviors, or changing node layout.
+ * NodeLayer.tsx
+ *
+ * Renders DOM-based nodes as absolutely positioned <div>s for MapItOut.
+ * Each node is positioned using transform: translate(x, y) and styled by category.
+ * Handles click events for node selection and drag events for manual positioning.
+ *
+ * Update when: Modifying node rendering, selection logic, or category styling.
  */
 
 import React from 'react';
-import { useMapStore } from '../../stores';
-import { NodeComponent } from '../nodes/NodeComponent';
-import { useVirtualizedNodes } from '../../hooks/use-node-positioning';
-
+import type { Node, NodeCategory } from '../../types';
+import { NODE_COLORS } from '../../types';
 
 interface NodeLayerProps {
-  width: number;
-  height: number;
+  nodes: Map<string, Node>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onDragStart?: (id: string, e: React.MouseEvent) => void;
+  draggedNodeId?: string | null;
 }
 
-export const NodeLayer: React.FC<NodeLayerProps> = () => {
-  const { selectedId, selectNode, updateNode } = useMapStore();
-
-  const handleNodeSelect = (id: string) => {
-    selectNode(id);
-  };
-
-  const handleNodeDoubleClick = (id: string) => {
-    updateNode(id, { isEditing: true });
-  };
-
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    // Only deselect if clicking on the canvas background, not on a node
-    if (e.target === e.currentTarget) {
-      selectNode('');
-    }
-  };
-
-  // Convert nodes Map to array for rendering
-  const visibleNodes = useVirtualizedNodes();
-  const nodesArray = Array.from(visibleNodes.values());
-
+export const NodeLayer: React.FC<NodeLayerProps> = ({ nodes, selectedId, onSelect, onDragStart, draggedNodeId }) => {
   return (
-    <div
-      className="absolute inset-0 pointer-events-auto"
-      style={{ zIndex: 1 }}
-      onClick={handleCanvasClick}
-    >
-      {nodesArray.map((node) => (
-        <NodeComponent
-          key={node.id}
-          node={node}
-          isSelected={selectedId === node.id}
-          onSelect={handleNodeSelect}
-          onDoubleClick={handleNodeDoubleClick}
-        />
-      ))}
+    <div className="absolute inset-0 pointer-events-none">
+      {Array.from(nodes.values()).map((node) => {
+        const isSelected = node.id === selectedId;
+        const isDragging = node.id === draggedNodeId;
+        const color = NODE_COLORS[node.category as NodeCategory] || '#64748b';
+        return (
+          <div
+            key={node.id}
+            className={`pointer-events-auto px-3 py-2 rounded-lg border-2 font-medium text-sm select-none transition-all duration-200 absolute shadow-md ${isSelected ? 'border-white ring-2 ring-white' : 'border-gray-600'} ${isDragging ? 'ring-4 ring-blue-400 cursor-grabbing' : ''}`}
+            style={{
+              left: 0,
+              top: 0,
+              transform: `translate(${node.x}px, ${node.y}px)`,
+              background: color + '22', // subtle background tint
+              borderColor: color,
+              zIndex: isSelected ? 2 : 1,
+              minWidth: 100,
+              maxWidth: 250,
+              height: 40,
+              cursor: isDragging ? 'grabbing' : 'pointer',
+            }}
+            tabIndex={0}
+            aria-selected={isSelected}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(node.id);
+            }}
+            onMouseDown={onDragStart ? (e) => onDragStart(node.id, e) : undefined}
+          >
+            <span className="text-white truncate block w-full" title={node.text}>{node.text}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }; 
