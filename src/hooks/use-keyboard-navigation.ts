@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useMapStore } from '../stores';
+import useMapStore from '../stores/map-store';
 import type { Node } from '../types';
 
 export const useKeyboardNavigation = () => {

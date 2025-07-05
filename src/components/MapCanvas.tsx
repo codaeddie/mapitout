@@ -12,12 +12,16 @@ import useMapStore from '../stores/map-store';
 import useUIStore from '../stores/ui-store';
 import { ConnectionLayer } from './canvas/ConnectionLayer';
 import { NodeLayer } from './canvas/NodeLayer';
+import { useKeyboardNavigation } from '../hooks';
 import type { ViewBox } from '../types';
 
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 1200;
 
 export const MapCanvas: React.FC = () => {
+  // Enable keyboard navigation
+  useKeyboardNavigation();
+  
   const {
     nodes,
     connections,
@@ -28,6 +32,7 @@ export const MapCanvas: React.FC = () => {
     setViewBox,
     setZoom,
     updateNodePosition,
+    updateNode,
   } = useMapStore();
 
   const {
@@ -160,6 +165,7 @@ export const MapCanvas: React.FC = () => {
           nodes={nodes}
           selectedId={selectedId}
           onSelect={handleNodeSelect}
+          onUpdateNode={updateNode}
           onDragStart={handleNodeDragStart}
           draggedNodeId={draggedNodeId}
         />

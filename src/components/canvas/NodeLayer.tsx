@@ -16,11 +16,12 @@ interface NodeLayerProps {
   nodes: Map<string, Node>;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onUpdateNode?: (id: string, updates: Partial<Node>) => void;
   onDragStart?: (id: string, e: React.MouseEvent) => void;
   draggedNodeId?: string | null;
 }
 
-export const NodeLayer: React.FC<NodeLayerProps> = ({ nodes, selectedId, onSelect, onDragStart, draggedNodeId }) => {
+export const NodeLayer: React.FC<NodeLayerProps> = ({ nodes, selectedId, onSelect, onUpdateNode, onDragStart, draggedNodeId }) => {
   return (
     <div className="absolute inset-0 pointer-events-none">
       {Array.from(nodes.values()).map((node) => {
@@ -51,7 +52,29 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({ nodes, selectedId, onSelec
             }}
             onMouseDown={onDragStart ? (e) => onDragStart(node.id, e) : undefined}
           >
-            <span className="text-white truncate block w-full" title={node.text}>{node.text}</span>
+            {node.isEditing ? (
+              <input
+                type="text"
+                value={node.text}
+                onChange={(e) => onUpdateNode?.(node.id, { text: e.target.value })}
+                onBlur={() => onUpdateNode?.(node.id, { isEditing: false })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    onUpdateNode?.(node.id, { isEditing: false });
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    onUpdateNode?.(node.id, { isEditing: false });
+                  }
+                }}
+                className="bg-transparent border-none outline-none text-white font-medium w-full"
+                autoFocus
+                style={{ fontSize: '14px' }}
+              />
+            ) : (
+              <span className="text-white truncate block w-full" title={node.text}>{node.text}</span>
+            )}
           </div>
         );
       })}
