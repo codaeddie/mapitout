@@ -1,196 +1,281 @@
----
-description: React and TypeScript patterns for MapItOut components
-type: auto_attached
-globs: src/components/**/*.tsx,src/hooks/**/*.ts
-alwaysApply: false
----
 
 
-# React + TypeScript Patterns for MapItOut
+# React TypeScript Patterns for MapItOut
 
-## Component Patterns
+## Component Architecture (Simplified)
 
-**Functional Components Only:**
+**Key Principle**: Keep components focused and simple
+- One component per file
+- Props interfaces defined inline or in types/
+- No over-engineering with complex abstractions
+
+## Component Structure
 
 ```typescript
-interface NodeComponentProps {
-  node: Node;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onEdit: (id: string) => void;
+// Standard component pattern
+interface ComponentProps {
+  // Props here
 }
 
-function NodeComponent({ node, isSelected, onSelect, onEdit }: NodeComponentProps) {
-  // Component logic
-}
-```
-
-**Custom Hooks Pattern:**
-
-```typescript
-function useKeyboardNavigation() {
-  const selectNode = useMapStore(state => state.selectNode);
-  const selectedId = useMapStore(state => state.selectedId);
+export function ComponentName({ prop1, prop2 }: ComponentProps) {
+  // Hooks first
+  const store = useMapStore();
   
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Keyboard logic
-  }, [selectNode]);
+  // Event handlers
+  const handleClick = () => {
+    // Logic here
+  };
   
-  return { handleKeyDown };
-}
-```
-
-## TypeScript Best Practices
-
-- **Use interfaces over types** for object shapes
-- **Avoid enums** - use const objects or literal types
-- **Strict mode enabled** in tsconfig.json
-- **No any types** - use unknown for flexible types
-- **Proper null checks** - use optional chaining
-
-```typescript
-// Good: Const object instead of enum
-const NODE_CATEGORIES = {
-  CENTRAL: 0,
-  PRIMARY: 1,
-  SECONDARY: 2,
-  SUPPORTING: 3,
-  SPECIALIZED: 4,
-  ADDITIONAL: 5,
-} as const;
-
-type NodeCategory = typeof NODE_CATEGORIES[keyof typeof NODE_CATEGORIES];
-```
-
-## React Performance Patterns
-
-**Memoization:**
-
-```typescript
-const NodeComponent = React.memo(({ node, isSelected, onSelect }: NodeComponentProps) => {
-  const handleClick = useCallback(() => {
-    onSelect(node.id);
-  }, [node.id, onSelect]);
-  
+  // Render
   return (
-    <div onClick={handleClick}>
-      {node.text}
+    <div className="component-classes">
+      {/* Content */}
     </div>
   );
-});
+}
 ```
 
-**Avoid Inline Functions:**
+## State Management (Zustand)
 
 ```typescript
-// Bad
-<button onClick={() => handleClick(node.id)}>
+// Store pattern - keep it simple
+interface MapState {
+  // Data
+  nodes: Map<string, Node>;
+  selectedId: string | null;
+  layoutType: 'center' | 'top';
+  
+  // Actions - return void, update state directly
+  createNode: (parentId: string, text?: string) => void;
+  updateNode: (id: string, updates: Partial<Node>) => void;
+  selectNode: (id: string) => void;
+  setLayoutType: (type: 'center' | 'top') => void;
+}
 
-// Good
-const handleClick = useCallback(() => {
-  onSelect(node.id);
-}, [node.id, onSelect]);
+export const useMapStore = create<MapState>((set, get) => ({
+  // Initial state
+  nodes: new Map(),
+  selectedId: null,
+  layoutType: 'center',
+  
+  // Actions
+  createNode: (parentId, text = '') => {
+    const newId = nanoid();
+    const newNode: Node = {
+      id: newId,
+      text,
+      children: [],
+      parent: parentId,
+      metadata: {
+        created: Date.now(),
+        modified: Date.now(),
+        collapsed: false,
+      }
+    };
+    
+    set(state => {
+      const newNodes = new Map(state.nodes);
+      newNodes.set(newId, newNode);
+      
+      // Update parent's children array
+      if (parentId) {
+        const parent = newNodes.get(parentId);
+        if (parent) {
+          parent.children.push(newId);
+          parent.metadata.modified = Date.now();
+        }
+      }
+      
+      return { nodes: newNodes, selectedId: newId };
+    });
+  },
+  
+  updateNode: (id, updates) => {
+    set(state => {
+      const newNodes = new Map(state.nodes);
+      const node = newNodes.get(id);
+      if (node) {
+        Object.assign(node, updates);
+        node.metadata.modified = Date.now();
+      }
+      return { nodes: newNodes };
+    });
+  },
+  
+  selectNode: (id) => set({ selectedId: id }),
+  setLayoutType: (type) => set({ layoutType: type }),
+}));
 ```
 
-## Event Handling
-
-**Keyboard Events:**
+## Canvas Rendering Pattern
 
 ```typescript
-const handleKeyDown = useCallback((event: KeyboardEvent) => {
-  // Prevent default for handled keys
-  if (['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
-    event.preventDefault();
-  }
+// Canvas component pattern
+export function MapCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const store = useMapStore();
   
-  // Don't handle if user is editing text
-  if (event.target instanceof HTMLInputElement) {
-    return;
-  }
+  // Calculate positions on every render
+  const positions = useMemo(() => {
+    return calculateLayout(store.nodes, store.layoutType);
+  }, [store.nodes, store.layoutType]);
   
-  switch (event.key) {
-    case 'Tab':
-      createChildNode();
-      break;
-    case 'Enter':
-      startEditing();
-      break;
-  }
-}, [createChildNode, startEditing]);
+  // Render to canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw connections first
+    drawConnections(ctx, store.nodes, positions);
+    
+    // Draw nodes
+    drawNodes(ctx, store.nodes, positions);
+  }, [positions, store.nodes]);
+  
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full"
+      width={1600}
+      height={800}
+    />
+  );
+}
+```
+
+## Hook Patterns
+
+```typescript
+// Custom hook pattern
+export function useKeyboardNavigation() {
+  const store = useMapStore();
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Tab':
+          e.preventDefault();
+          if (store.selectedId) {
+            store.createNode(store.selectedId);
+          }
+          break;
+          
+        case 'Enter':
+          e.preventDefault();
+          if (store.selectedId) {
+            const node = store.nodes.get(store.selectedId);
+            if (node?.parent) {
+              store.createNode(node.parent);
+            }
+          }
+          break;
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [store]);
+}
+```
+
+## Type Definitions
+
+```typescript
+// Keep types simple and focused
+export interface Node {
+  id: string;
+  text: string;
+  children: string[];
+  parent: string | null;
+  metadata: {
+    created: number;
+    modified: number;
+    collapsed: boolean;
+  };
+}
+
+export interface Position {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type LayoutType = 'center' | 'top';
+```
+
+## File Naming Convention
+
+- Components: `PascalCase.tsx` (e.g., `MapCanvas.tsx`)
+- Hooks: `use-kebab-case.ts` (e.g., `use-keyboard-navigation.ts`)
+- Utils: `kebab-case.ts` (e.g., `layout-engines.ts`)
+- Types: `index.ts` in types/ directory
+
+## Import/Export Patterns
+
+```typescript
+// Prefer named exports
+export function ComponentName() { }
+export const useHookName = () => { }
+export interface TypeName { }
+
+// Use index files for clean imports
+// types/index.ts
+export * from './node-types';
+export * from './layout-types';
+
+// components/index.ts
+export { MapCanvas } from './MapCanvas';
+export { NodeComponent } from './NodeComponent';
+```
+
+## Performance Patterns
+
+```typescript
+// Memoize expensive calculations
+const positions = useMemo(() => {
+  return calculateLayout(nodes, layoutType);
+}, [nodes, layoutType]);
+
+// Use callback for event handlers
+const handleClick = useCallback((id: string) => {
+  store.selectNode(id);
+}, [store]);
+
+// Debounce expensive operations
+const debouncedUpdate = useMemo(
+  () => debounce((updates) => {
+    store.updateNode(id, updates);
+  }, 300),
+  [store, id]
+);
 ```
 
 ## Error Handling
 
-**Error Boundaries:**
-
 ```typescript
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
-
-class ErrorBoundary extends React.Component<
-  React.PropsWithChildren<{}>,
-  ErrorBoundaryState
-> {
-  constructor(props: React.PropsWithChildren<{}>) {
-    super(props);
-    this.state = { hasError: false };
+// Simple error boundaries
+export function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+  
+  if (hasError) {
+    return <div>Something went wrong. Please refresh the page.</div>;
   }
   
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-  
-  render() {
-    if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error} />;
-    }
-    
-    return this.props.children;
-  }
+  return (
+    <ErrorBoundaryComponent onError={() => setHasError(true)}>
+      {children}
+    </ErrorBoundaryComponent>
+  );
 }
 ```
 
-## Naming Conventions
-
-- **Components**: PascalCase (NodeComponent, CanvasLayer)
-- **Hooks**: camelCase with "use" prefix (useKeyboardNavigation)
-- **Props**: camelCase with descriptive names (isSelected, onNodeSelect)
-- **Event Handlers**: "handle" prefix (handleKeyDown, handleNodeClick)
-- **Boolean Props**: "is", "has", "can" prefixes (isEditing, hasChildren)
-
-## File Structure
-
-```typescript
-// Component file structure
-// 1. Imports
-// 2. Interfaces
-// 3. Component
-// 4. Subcomponents
-// 5. Helpers
-// 6. Export
-
-import React, { useCallback, useMemo } from 'react';
-import { Node } from '../types';
-
-interface NodeComponentProps {
-  node: Node;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-}
-
-function NodeComponent({ node, isSelected, onSelect }: NodeComponentProps) {
-  // Main component logic
-}
-
-function NodeText({ text, isEditing }: { text: string; isEditing: boolean }) {
-  // Subcomponent
-}
-
-// Helper functions
-function calculateNodeWidth(text: string): number {
-  // Helper logic
 }
 
 export { NodeComponent };

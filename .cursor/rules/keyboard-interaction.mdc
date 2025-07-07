@@ -1,405 +1,281 @@
 
-# Keyboard Interaction Patterns
+# Keyboard Interaction - Simplified MapItOut
+
+## Core Philosophy
+
+**Keyboard-First Design**: All primary functionality accessible via keyboard
+- No mouse gymnastics required
+- Rapid creation and navigation
+- Matches how people outline thoughts
 
 ## Primary Keyboard Shortcuts
 
-| Key | Action | Context |
-|-----|--------|---------|
-| `Tab` | Create connected node (context-dependent) | Node selected |
-| `Shift + Space` | Create unconnected node | Node selected |
-| `Enter` | Start/stop text editing | Node selected |
-| `Escape` | Exit edit mode | Text editing |
-| `Delete` | Delete node | Node selected |
-| `Arrow Keys` | Navigate connections | Node selected |
-| `1-4` | Switch layout (1=Tree, 2=Web, 3=Flow, 4=Command) | Global |
-| `+` / `-` | Zoom in/out | Global |
-| `Space` | Pan mode toggle | Global |
+### Node Creation
+```typescript
+// Tab: Create child node
+case 'Tab':
+  e.preventDefault();
+  if (selectedId) {
+    createNode(selectedId); // Creates child of selected node
+  }
+  break;
 
-## Main Keyboard Handler
+// Enter: Create sibling node  
+case 'Enter':
+  e.preventDefault();
+  if (selectedId) {
+    const node = nodes.get(selectedId);
+    if (node?.parent) {
+      createNode(node.parent); // Creates sibling of selected node
+    }
+  }
+  break;
+```
+
+### Navigation
+```typescript
+// Arrow keys: Navigate between nodes
+case 'ArrowUp':
+case 'ArrowDown':
+case 'ArrowLeft':
+case 'ArrowRight':
+  e.preventDefault();
+  navigateToAdjacentNode(e.key);
+  break;
+
+// Escape: Clear selection
+case 'Escape':
+  e.preventDefault();
+  selectNode(null);
+  break;
+```
+
+### Text Editing
+```typescript
+// Enter in edit mode: New line in text
+// Shift+Enter in edit mode: Complete edit
+// Escape: Cancel edit
+const handleEditKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && e.shiftKey) {
+    e.preventDefault();
+    completeEdit();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelEdit();
+  }
+};
+```
+
+## Implementation Pattern
 
 ```typescript
-function useKeyboardNavigation() {
-  const { 
-    selectedId, 
-    nodes, 
-    connections,
-    layoutType,
-    createNode, 
-    updateNode, 
-    deleteNode, 
-    selectNode,
-    setLayoutType
-  } = useMapStore();
-
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+export function useKeyboardNavigation() {
+  const store = useMapStore();
   
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Don't handle keyboard shortcuts if user is editing text
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-      handleEditingKeyDown(event);
-      return;
-    }
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if user is editing text
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // Don't handle if user is typing in a contenteditable
+      if (e.target instanceof HTMLElement && e.target.contentEditable === 'true') {
+        return;
+      }
+      
+      switch (e.key) {
+        case 'Tab':
+          e.preventDefault();
+          if (store.selectedId) {
+            store.createNode(store.selectedId);
+          }
+          break;
+          
+        case 'Enter':
+          e.preventDefault();
+          if (store.selectedId) {
+            const node = store.nodes.get(store.selectedId);
+            if (node?.parent) {
+              store.createNode(node.parent);
+            }
+          }
+          break;
+          
+        case 'Escape':
+          e.preventDefault();
+          store.selectNode(null);
+          break;
+          
+        case 'ArrowUp':
+        case 'ArrowDown':
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateToAdjacentNode(e.key, store);
+          break;
+      }
+    };
     
-    // Global shortcuts (always available)
-    if (handleGlobalShortcuts(event)) {
-      return;
-    }
-    
-    // Node-specific shortcuts (require selected node)
-    if (selectedId) {
-      handleNodeShortcuts(event, selectedId);
-    }
-  }, [selectedId, editingNodeId]);
-  
-  const handleGlobalShortcuts = useCallback((event: KeyboardEvent) => {
-    switch (event.key) {
-      case '+':
-      case '=':
-        event.preventDefault();
-        zoomIn();
-        return true;
-        
-      case '-':
-      case '_':
-        event.preventDefault();
-        zoomOut();
-        return true;
-        
-      case ' ':
-        event.preventDefault();
-        togglePanMode();
-        return true;
-        
-      default:
-        return false;
-    }
-  }, []);
-  
-  const handleNodeShortcuts = useCallback((event: KeyboardEvent, nodeId: string) => {
-    const { layoutType, createNode, setLayoutType } = useMapStore.getState();
-    
-    switch (event.key) {
-      case 'Tab':
-        event.preventDefault();
-        // Context-aware creation based on layout type
-        if (layoutType === 'hierarchical') {
-          createNode('New Child', 'leaf'); // Creates hierarchy connection
-        } else if (layoutType === 'web') {
-          createNode('New Spoke', 'leaf'); // Creates hub-spoke connection
-        } else if (layoutType === 'snake') {
-          createNode('New Flow', 'leaf'); // Creates flow connection
-        } else if (layoutType === 'command') {
-          createNode('New Parameter', 'parameter'); // Creates parameter connection
-        }
-        break;
-        
-      case ' ':
-        if (event.shiftKey) {
-          event.preventDefault();
-          createNode('New Node', 'leaf'); // Always creates unconnected node
-        }
-        break;
-        
-      case 'Enter':
-        event.preventDefault();
-        startEditing(nodeId);
-        break;
-        
-      case 'Delete':
-      case 'Backspace':
-        event.preventDefault();
-        deleteNode(nodeId);
-        break;
-        
-      case '1':
-        event.preventDefault();
-        setLayoutType('hierarchical');
-        break;
-        
-      case '2':
-        event.preventDefault();
-        setLayoutType('web');
-        break;
-        
-      case '3':
-        event.preventDefault();
-        setLayoutType('snake');
-        break;
-        
-      case '4':
-        event.preventDefault();
-        setLayoutType('command');
-        break;
-        
-      case 'ArrowUp':
-        event.preventDefault();
-        navigateUp(nodeId);
-        break;
-        
-      case 'ArrowDown':
-        event.preventDefault();
-        navigateDown(nodeId);
-        break;
-        
-      case 'ArrowLeft':
-        event.preventDefault();
-        navigateLeft(nodeId);
-        break;
-        
-      case 'ArrowRight':
-        event.preventDefault();
-        navigateRight(nodeId);
-        break;
-    }
-  }, []);
-  
-  const handleEditingKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!editingNodeId) return;
-    
-    switch (event.key) {
-      case 'Enter':
-        if (!event.shiftKey) {
-          event.preventDefault();
-          stopEditing();
-        }
-        // Shift+Enter creates new line (default behavior)
-        break;
-        
-      case 'Escape':
-        event.preventDefault();
-        stopEditing();
-        break;
-        
-      case 'Tab':
-        event.preventDefault();
-        stopEditing();
-        createNode('New Node', 'leaf');
-        break;
-    }
-  }, [editingNodeId]);
-  
-  return {
-    handleKeyDown,
-    editingNodeId,
-    setEditingNodeId,
-  };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [store]);
 }
 ```
 
 ## Navigation Logic
 
 ```typescript
-function useNodeNavigation() {
-  const { nodes, connections, selectedId, selectNode } = useMapStore();
+function navigateToAdjacentNode(direction: string, store: MapStore) {
+  const { nodes, selectedId } = store;
+  if (!selectedId) return;
   
-  const getConnectedNodes = useCallback((nodeId: string) => {
-    return connections
-      .filter(c => c.from === nodeId || c.to === nodeId)
-      .map(c => c.from === nodeId ? c.to : c.from)
-      .map(id => nodes.get(id))
-      .filter(Boolean) as Node[];
-  }, [connections, nodes]);
+  const selectedNode = nodes.get(selectedId);
+  if (!selectedNode) return;
   
-  const navigateUp = useCallback((nodeId: string) => {
-    const connectedNodes = getConnectedNodes(nodeId);
-    if (connectedNodes.length > 0) {
-      // Select first connected node (could be improved with better logic)
-      selectNode(connectedNodes[0].id);
-    }
-  }, [getConnectedNodes, selectNode]);
+  let targetId: string | null = null;
   
-  const navigateDown = useCallback((nodeId: string) => {
-    const connectedNodes = getConnectedNodes(nodeId);
-    if (connectedNodes.length > 1) {
-      // Select second connected node if available
-      selectNode(connectedNodes[1].id);
-    } else if (connectedNodes.length === 1) {
-      selectNode(connectedNodes[0].id);
-    }
-  }, [getConnectedNodes, selectNode]);
-  
-  const navigateLeft = useCallback((nodeId: string) => {
-    // Find connections where this node is the target (incoming connections)
-    const incomingConnections = connections.filter(c => c.to === nodeId);
-    if (incomingConnections.length > 0) {
-      const sourceNode = nodes.get(incomingConnections[0].from);
-      if (sourceNode) {
-        selectNode(sourceNode.id);
-      }
-    }
-  }, [connections, nodes, selectNode]);
-  
-  const navigateRight = useCallback((nodeId: string) => {
-    // Find connections where this node is the source (outgoing connections)
-    const outgoingConnections = connections.filter(c => c.from === nodeId);
-    if (outgoingConnections.length > 0) {
-      const targetNode = nodes.get(outgoingConnections[0].to);
-      if (targetNode) {
-        selectNode(targetNode.id);
-      }
-    }
-  }, [connections, nodes, selectNode]);
-  
-  return {
-    navigateUp,
-    navigateDown,
-    navigateLeft,
-    navigateRight,
-  };
-}
-```
-
-## Node Creation Logic
-
-```typescript
-function useNodeCreation() {
-  const { layoutType, createNode } = useMapStore();
-  
-  const createConnectedNode = useCallback((text = 'New Node') => {
-    // Context-aware node creation based on layout
-    const nodeType = layoutType === 'command' ? 'parameter' : 'leaf';
-    createNode(text, nodeType);
-  }, [layoutType, createNode]);
-  
-  const createUnconnectedNode = useCallback((text = 'New Node') => {
-    // Always creates unconnected leaf node
-    createNode(text, 'leaf');
-  }, [createNode]);
-  
-  return {
-    createConnectedNode,
-    createUnconnectedNode,
-  };
-}
-```
-
-## Text Editing Logic
-
-```typescript
-function useTextEditing() {
-  const { nodes, updateNode } = useMapStore();
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
-  
-  const startEditing = useCallback((nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node) return;
-    
-    setEditingNodeId(nodeId);
-    setEditingText(node.text);
-    
-    // Focus the input after a brief delay
-    setTimeout(() => {
-      const input = document.querySelector(`[data-node-id="${nodeId}"] input`);
-      if (input instanceof HTMLInputElement) {
-        input.focus();
-        input.select();
-      }
-    }, 0);
-  }, [nodes]);
-  
-  const stopEditing = useCallback(() => {
-    if (!editingNodeId) return;
-    
-    // Save the text if it's changed
-    const node = nodes.get(editingNodeId);
-    if (node && editingText !== node.text) {
-      updateNode(editingNodeId, { text: editingText });
-    }
-    
-    setEditingNodeId(null);
-    setEditingText('');
-  }, [editingNodeId, editingText, nodes, updateNode]);
-  
-  const handleTextChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingText(event.target.value);
-  }, []);
-  
-  return {
-    editingNodeId,
-    editingText,
-    startEditing,
-    stopEditing,
-    handleTextChange,
-  };
-}
-```
-
-## Event Listener Setup
-
-```typescript
-function useGlobalKeyboardListeners() {
-  const { handleKeyDown } = useKeyboardNavigation();
-  
-  useEffect(() => {
-    // Add global keyboard listener
-    document.addEventListener('keydown', handleKeyDown);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
-}
-```
-
-## Focus Management
-
-```typescript
-function useFocusManagement() {
-  const { selectedId } = useMapStore();
-  
-  useEffect(() => {
-    if (selectedId) {
-      // Ensure selected node is visible and focused
-      const nodeElement = document.querySelector(`[data-node-id="${selectedId}"]`);
-      if (nodeElement) {
-        nodeElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'nearest' 
-        });
-        
-        // Set focus for keyboard navigation
-        if (nodeElement instanceof HTMLElement) {
-          nodeElement.focus();
-        }
-      }
-    }
-  }, [selectedId]);
-}
-```
-
-## Accessibility Support
-
-```typescript
-function NodeComponent({ node, isSelected, connections }: NodeComponentProps) {
-  const connectedCount = connections.filter(c => c.from === node.id || c.to === node.id).length;
-  
-  return (
-    <div
-      data-node-id={node.id}
-      role="treeitem"
-      aria-selected={isSelected}
-      aria-expanded={connectedCount > 0}
-      aria-level={node.layoutHints.layer || 1}
-      tabIndex={isSelected ? 0 : -1}
-      className={`node ${isSelected ? 'selected' : ''}`}
-    >
-      {node.text}
+  switch (direction) {
+    case 'ArrowUp':
+      // Find node above in same tier
+      targetId = findNodeAbove(selectedNode, nodes);
+      break;
       
-      {/* Keyboard hints for selected node */}
-      {isSelected && (
-        <div className="sr-only">
-          Press Tab to create connected node, Shift+Space for unconnected, Enter to edit, 1-4 to switch layouts
-        </div>
-      )}
-    </div>
-  );
+    case 'ArrowDown':
+      // Find node below in same tier
+      targetId = findNodeBelow(selectedNode, nodes);
+      break;
+      
+    case 'ArrowLeft':
+      // Find node to the left
+      targetId = findNodeLeft(selectedNode, nodes);
+      break;
+      
+    case 'ArrowRight':
+      // Find node to the right
+      targetId = findNodeRight(selectedNode, nodes);
+      break;
+  }
+  
+  if (targetId) {
+    store.selectNode(targetId);
+  }
 }
 ```
 
-    </div>
-  );
-}
+## Text Editing States
 
+```typescript
+// Text editing state machine
+type EditState = 'idle' | 'editing' | 'completing';
+
+const [editState, setEditState] = useState<EditState>('idle');
+
+// Single click: Select node
+const handleNodeClick = (id: string) => {
+  if (editState === 'idle') {
+    selectNode(id);
+  }
+};
+
+// Double click: Start editing
+const handleNodeDoubleClick = (id: string) => {
+  if (editState === 'idle') {
+    setEditState('editing');
+    startEditing(id);
+  }
+};
+
+// Enter in edit mode: New line
+// Shift+Enter in edit mode: Complete edit
+const handleEditKeyDown = (e: KeyboardEvent) => {
+  if (editState === 'editing') {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      setEditState('completing');
+      completeEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditState('idle');
+      cancelEdit();
+    }
+  }
+};
+```
+
+## Context-Aware Behavior
+
+```typescript
+// Different behavior based on context
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Check if user is editing
+  if (isEditing) {
+    handleEditKeyDown(e);
+    return;
+  }
+  
+  // Check if user is in input field
+  if (e.target instanceof HTMLInputElement) {
+    return; // Let browser handle
+  }
+  
+  // Handle navigation and creation
+  handleNavigationKeyDown(e);
+};
+```
+
+## Accessibility Considerations
+
+```typescript
+// Provide visual feedback for keyboard navigation
+const isSelected = node.id === selectedId;
+const isFocused = node.id === focusedId;
+
+return (
+  <div
+    className={`node ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''}`}
+    tabIndex={0}
+    role="button"
+    aria-label={`Node: ${node.text}`}
+    onKeyDown={handleNodeKeyDown}
+  >
+    {node.text}
+  </div>
+);
+```
+
+## Performance Optimization
+
+```typescript
+// Debounce rapid key presses
+const debouncedKeyHandler = useMemo(
+  () => debounce((key: string) => {
+    handleKeyPress(key);
+  }, 50),
+  []
+);
+
+// Use callback for event handlers
+const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  // Handler logic
+}, [store, editState]);
+```
+
+## Testing Keyboard Interactions
+
+```typescript
+// Test keyboard shortcuts
+describe('Keyboard Navigation', () => {
+  it('should create child node on Tab', () => {
+    render(<MapCanvas />);
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByText('New Node')).toBeInTheDocument();
+  });
+  
+  it('should create sibling node on Enter', () => {
+    render(<MapCanvas />);
+    fireEvent.keyDown(document, { key: 'Enter' });
+    expect(screen.getByText('New Node')).toBeInTheDocument();
+  });
+});
 ```

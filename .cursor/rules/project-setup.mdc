@@ -1,309 +1,106 @@
----
-# NOTE: For ongoing configuration and build details, see [project-configuration.mdc](mdc:project-configuration.mdc).
-# This file focuses on initial project setup and bootstrapping only.
-description: MapItOut project setup and initialization guide
-type: agent_requested
----
 
-# MapItOut Project Setup Guide
+# MapItOut Project Setup - Simplified Architecture
 
-## Initialize New MapItOut Project
+## Project Overview
+MapItOut is a visual tree mapping tool for organizing complex systems and technical knowledge. It features two focused layouts: Center (mind map style) and Top (hierarchical tree), with keyboard-driven creation and professional export capabilities.
 
-When creating a new MapItOut project, follow this exact setup pattern:
+## Core Architecture Philosophy
 
-```bash
-# Create Vite React TypeScript project
-npm create vite@latest mapitout -- --template react-ts
+**Key Principle**: Structure is permanent, positions are temporary
+- Nodes store relationships (parent/child), not coordinates
+- Layout algorithms calculate positions on every render
+- No stored x,y coordinates in node data
+- Clean separation: data structure vs presentation
 
-# Install dependencies
-npm install zustand nanoid html2canvas
-
-# Install dev dependencies
-npm install -D @types/html2canvas
-
-# Setup Tailwind CSS
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-```
-
-## Project Structure
-
-```markdown
-mapitout/
-├── src/
-│   ├── components/
-│   │   ├── canvas/
-│   │   │   ├── ConnectionLayer.tsx
-│   │   │   ├── NodeLayer.tsx
-│   │   │   └── index.ts
-│   │   ├── nodes/
-│   │   │   ├── NodeComponent.tsx
-│   │   │   ├── NodeEditor.tsx
-│   │   │   └── index.ts
-│   │   ├── ui/
-│   │   │   ├── Toolbar.tsx
-│   │   │   ├── ExportControls.tsx
-│   │   │   └── index.ts
-│   │   └── MapCanvas.tsx
-│   ├── hooks/
-│   │   ├── use-keyboard-navigation.ts
-│   │   ├── use-node-positioning.ts
-│   │   ├── use-canvas-rendering.ts
-│   │   └── index.ts
-│   ├── stores/
-│   │   ├── map-store.ts
-│   │   ├── ui-store.ts
-│   │   └── index.ts
-│   ├── types/
-│   │   └── index.ts
-│   ├── utils/
-│   │   ├── positioning.ts
-│   │   ├── export.ts
-│   │   ├── validation.ts
-│   │   └── index.ts
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
-├── .cursor/
-│   └── rules/
-│       ├── core-mapitout.mdc
-│       ├── react-typescript.mdc
-│       ├── canvas-performance.mdc
-│       ├── state-management.mdc
-│       ├── keyboard-interaction.mdc
-│       └── project-setup.mdc
-├── tailwind.config.js
-├── tsconfig.json
-├── vite.config.ts
-└── package.json
-```
-
-## Essential Configuration Files
-
-**tailwind.config.js:**
-
-```javascript
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        'node-orange': '#f97316',
-        'node-blue': '#3b82f6', 
-        'node-red': '#ef4444',
-        'node-green': '#10b981',
-        'node-purple': '#8b5cf6',
-        'node-amber': '#f59e0b',
-      },
-      backgroundImage: {
-        'circuit-pattern': "url('data:image/svg+xml,<svg>...</svg>')",
-      },
-    },
-  },
-  plugins: [],
-  darkMode: 'class',
-}
-```
-
-**tsconfig.json updates:**
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
-}
-```
-
-## Initial Implementation Order
-
-1. **Types First** (`src/types/index.ts`)
-2. **Base Store** (`src/stores/map-store.ts`)
-3. **Core Components** (`src/components/MapCanvas.tsx`)
-4. **Keyboard Hooks** (`src/hooks/use-keyboard-navigation.ts`)
-5. **Layout Utils** (`src/utils/positioning.ts`)
-6. **Canvas Rendering** (`src/components/canvas/`)
-7. **Export Functionality** (`src/utils/export.ts`)
-
-## Core Types to Implement First
+## Data Model (Simplified)
 
 ```typescript
-// src/types/index.ts
-export interface Node {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  parentId: string | null;
-  children: string[];
-  tier: number;
-  category: number;
-  isEditing: boolean;
+interface Node {
+  id: string;              // Unique identifier
+  text: string;            // Display content
+  children: string[];      // Child node IDs
+  parent: string | null;   // Parent node ID
+  metadata: {
+    created: timestamp;
+    modified: timestamp;
+    collapsed: boolean;
+  };
 }
 
-export interface ViewBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface Connection {
-  from: string;
-  to: string;
-}
-
-export interface MapState {
-  nodes: Map<string, Node>;
-  rootId: string;
-  selectedId: string | null;
-  viewBox: ViewBox;
-  zoomLevel: number;
-  connections: Connection[];
-  
-  // Actions
-  createNode: (parentId: string, text?: string) => void;
-  updateNode: (id: string, updates: Partial<Node>) => void;
-  deleteNode: (id: string) => void;
-  selectNode: (id: string) => void;
+// Positions are calculated, not stored
+interface Position {
+  x: number;              // Calculated by layout engine
+  y: number;              // Calculated by layout engine
+  width: number;          // Based on text content
+  height: number;         // Fixed or content-based
 }
 ```
 
-## Main App Component Structure
+## Layout Engines (Two Only)
 
-```typescript
-// src/App.tsx
-import React from 'react';
-import { MapCanvas } from './components/MapCanvas';
-import { useGlobalKeyboardListeners } from './hooks/use-keyboard-navigation';
+**Center Layout (Mind Map Style)**:
+- Root at canvas center (800, 400)
+- Tier 1: Alternate left/right of root
+- Tier 2+: Branch based on parent position
+- Distance increases by 50px per tier
+- Spacing: 80px between siblings
 
-function App() {
-  useGlobalKeyboardListeners();
-  
-  return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <div className="flex flex-col h-screen">
-        {/* Header/Toolbar */}
-        <header className="bg-slate-800 p-4">
-          <h1 className="text-xl font-bold">MapItOut</h1>
-        </header>
-        
-        {/* Main Canvas Area */}
-        <main className="flex-1 relative overflow-hidden">
-          <MapCanvas />
-        </main>
-      </div>
-    </div>
-  );
-}
+**Top Layout (Hierarchical Tree)**:
+- Root at top center
+- Each tier is a horizontal row
+- Tier spacing: 120px
+- Even distribution within tiers
+- Bottom-up positioning to avoid collisions
 
-export default App;
+## Rendering Pipeline
+
+**Every Frame**:
+1. Get current node structure
+2. Run active layout algorithm
+3. Calculate all positions
+4. Render nodes at positions
+5. Draw connections
+
+**Why Recalculate Every Time**:
+- Guarantees consistency
+- No position state to manage
+- Layout changes are trivial
+- Matches markmap approach
+
+## Tech Stack
+- React 18 + TypeScript
+- Vite for build tooling
+- Tailwind CSS for styling
+- Zustand for state management
+- HTML5 Canvas for rendering
+
+## File Structure
+```
+src/
+├── components/
+│   ├── MapCanvas.tsx      # Main canvas container
+│   ├── NodeComponent.tsx  # Individual node rendering
+│   └── ui/                # UI controls
+├── hooks/
+│   ├── use-keyboard-navigation.ts
+│   └── use-canvas-rendering.ts
+├── stores/
+│   └── map-store.ts       # Zustand store
+├── types/
+│   └── index.ts           # TypeScript interfaces
+└── utils/
+    ├── layout-engines.ts  # Two layout algorithms
+    ├── positioning.ts     # Position calculations
+    └── export.ts          # PNG export
 ```
 
-## Development Commands
+## Development Priorities
+1. **Keyboard Navigation First** - Tab (child), Enter (sibling)
+2. **Two Layouts Only** - Center and Top, no more
+3. **Structure Over Storage** - Calculate positions, don't store them
+4. **Performance** - 60fps with 100+ nodes
+5. **Export Quality** - High DPI PNG suitable for presentations
 
-```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Type checking
-npm run tsc
-
-# Lint code
-npm run lint
-```
-
-## Initial Test Plan
-
-1. **Basic Rendering**: Single root node displays correctly
-2. **Node Creation**: Tab key creates child nodes
-3. **Text Editing**: Enter key enables text editing
-4. **Navigation**: Arrow keys navigate between nodes
-5. **Canvas Connections**: Lines connect parent-child nodes
-6. **Export**: PNG export generates correct image
-
-## Performance Targets
-
-- **Initial Load**: < 2 seconds
-- **Node Creation**: < 100ms response time
-- **Rendering**: 60fps with 50+ nodes
-- **Export**: < 5 seconds for typical maps
-
-## Debugging Setup
-
-Add these to your browser dev tools:
-
-```javascript
-// Access store from console
-window.mapStore = useMapStore.getState();
-
-// Performance monitoring
-window.perfMonitor = {
-  nodeCount: () => window.mapStore.nodes.size,
-  selectedNode: () => window.mapStore.selectedId,
-  fps: 0, // Updated by performance hook
-};
-```
-
-## Git Workflow
-
-```bash
-# Initial commit
-git init
-git add .
-git commit -m "Initial MapItOut project setup"
-
-# Feature branches
-git checkout -b feature/keyboard-navigation
-git checkout -b feature/canvas-rendering
-git checkout -b feature/export-functionality
-
-# Commit messages
-git commit -m "feat: implement keyboard navigation system"
-git commit -m "fix: resolve canvas rendering performance issue"
-git commit -m "docs: update setup instructions"
-```
-
-## Ready-to-Build Checklist
-
-- [ ] Vite + React + TypeScript setup complete
-- [ ] Tailwind CSS configured with custom colors
-- [ ] Zustand store structure defined
-- [ ] Basic component structure created
-- [ ] Keyboard event listeners implemented
-- [ ] Canvas rendering pipeline established
-- [ ] Export functionality scaffolded
-
-- [ ] Performance monitoring hooks added
 - [ ] Keyboard event listeners implemented
 - [ ] Canvas rendering pipeline established
 - [ ] Export functionality scaffolded

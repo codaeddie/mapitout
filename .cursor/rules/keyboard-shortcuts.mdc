@@ -1,0 +1,16 @@
+# MapItOut Keyboard Shortcuts
+
+Keyboard navigation and editing is handled in [use-keyboard-navigation.ts](mdc:src/hooks/use-keyboard-navigation.ts):
+
+- **Tab**: Create child node of selected node
+- **Enter**: Create sibling node (same parent as selected)
+- **Shift+Space**: Edit selected node (same as double-click)
+- **Escape**: Deselect node
+- **Delete/Backspace**: Delete selected node and its children
+- **Arrow keys**: Navigate between nodes (basic tier/sibling navigation)
+
+Shortcuts are only active when not editing text. Editing state is managed by [ui-store.ts](mdc:src/stores/ui-store.ts).
+description:
+globs:
+alwaysApply: false
+---

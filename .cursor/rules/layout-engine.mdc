@@ -1,0 +1,13 @@
+# MapItOut Layout Engine Philosophy
+
+- Node positions are always calculated on render, never stored in node data.
+- Two layouts only: center (mind map) and top (tree), implemented in [layout-engines.ts](mdc:src/utils/layout-engines.ts).
+- Layouts use parent/child relationships to determine node positions.
+- Center layout: root at center, children alternate left/right, tiers radiate outward.
+- Top layout: root at top, children in rows below, even horizontal distribution.
+- All connection lines (if enabled) are drawn from node center to node center.
+- No manual positioning or drag-and-drop; structure is permanent, position is temporary.
+description:
+globs:
+alwaysApply: false
+---
