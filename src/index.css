@@ -11,6 +11,9 @@
   body {
     @apply bg-gray-900 text-gray-100;
     font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
   }
 }
 
@@ -20,27 +23,62 @@
     @apply absolute transform -translate-x-1/2 -translate-y-1/2 
            px-3 py-2 rounded-lg border-2 cursor-pointer
            transition-all duration-200 ease-in-out
-           hover:shadow-lg hover:scale-105;
+           hover:shadow-lg hover:scale-105
+           min-w-[100px] max-w-[250px];
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.2;
   }
   
   .node-selected {
     @apply border-white shadow-lg scale-105;
   }
   
-  .node-category-0 { @apply border-node-orange bg-node-orange/10; }
-  .node-category-1 { @apply border-node-red bg-node-red/10; }
-  .node-category-2 { @apply border-node-blue bg-node-blue/10; }
-  .node-category-3 { @apply border-node-green bg-node-green/10; }
-  .node-category-4 { @apply border-node-purple bg-node-purple/10; }
-  .node-category-5 { @apply border-node-amber bg-node-amber/10; }
+  .node-category-0 { @apply border-orange-500 bg-orange-500/10; }
+  .node-category-1 { @apply border-red-500 bg-red-500/10; }
+  .node-category-2 { @apply border-blue-500 bg-blue-500/10; }
+  .node-category-3 { @apply border-green-500 bg-green-500/10; }
+  .node-category-4 { @apply border-purple-500 bg-purple-500/10; }
+  .node-category-5 { @apply border-amber-500 bg-amber-500/10; }
+  
+  /* Manual position styling */
+  .node-manual-position {
+    @apply shadow-lg;
+    box-shadow: 0 0 0 2px rgba(255, 255, 0, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  .node-manual-position:hover {
+    box-shadow: 0 0 0 3px rgba(255, 255, 0, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
   
   .canvas-container {
     @apply relative w-full h-full overflow-hidden
-           bg-gray-900 bg-circuit-pattern;
+           bg-gray-900;
   }
   
   .connection-line {
     @apply stroke-gray-500 stroke-2 fill-none opacity-80;
+  }
+  
+  /* Multi-line text support */
+  .node-text {
+    @apply text-white font-medium text-sm;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.2;
+    overflow-wrap: break-word;
+  }
+  
+  .node-textarea {
+    @apply bg-transparent border-none outline-none text-white
+           font-medium text-sm w-full
+           placeholder-slate-400 resize-none overflow-hidden
+           leading-tight;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.2;
+    overflow-wrap: break-word;
   }
 }
 

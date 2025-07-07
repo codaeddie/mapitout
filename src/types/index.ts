@@ -12,13 +12,30 @@ export interface Node {
   text: string;            // User-visible text content
   x: number;               // Canvas X coordinate
   y: number;               // Canvas Y coordinate
-  parentId: string | null; // null for root node
-  children: string[];      // Array of child node IDs
-  tier: number;            // Depth level (0 = root)
+  nodeType: 'root' | 'hub' | 'leaf' | 'category' | 'parameter' | 'command';
   category: number;        // Color category (0-5)
   isEditing: boolean;      // Text editing state
-  angle?: number;          // Radial position angle (for layout)
-  radius?: number;         // Distance from parent (for layout)
+  layoutHints: {
+    manualPosition?: boolean; // User dragged
+    angle?: number;          // For radial layouts
+    layer?: number;          // For hierarchical layouts
+    sticky?: boolean;        // Position locked
+    
+    // Phase 4: Enhanced layout hints for visual polish
+    isRoot?: boolean;        // Root node indicator
+    isHub?: boolean;         // Hub node indicator
+    isCommandHub?: boolean;  // Command hub indicator
+    tierRadius?: number;     // Radius for tier positioning
+    tierIndex?: number;      // Index within tier
+    totalInTier?: number;    // Total nodes in tier
+    spokeIndex?: number;     // Index within spokes
+    totalSpokes?: number;    // Total spokes
+    distanceFromHub?: number; // Distance from hub
+    categoryIndex?: number;  // Index within category
+    totalInCategory?: number; // Total nodes in category
+    forceSimulated?: boolean; // Force simulation applied
+    initialized?: boolean;   // Position initialized
+  };
 }
 
 export interface ViewBox {
@@ -29,26 +46,42 @@ export interface ViewBox {
 }
 
 export interface Connection {
+  id: string;
   from: string;            // Source node ID
   to: string;              // Target node ID
+  type: 'hierarchy' | 'association' | 'flow' | 'parameter';
+  style: 'straight' | 'curved';
+}
+
+export interface LayoutEngine {
+  type: 'hierarchical' | 'web' | 'snake' | 'command';
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void;
 }
 
 export interface MapState {
   nodes: Map<string, Node>;      // All nodes in the map
+  connections: Connection[];     // All connections between nodes
   rootId: string;                // Root node ID
   selectedId: string | null;     // Currently selected node
+  selectedConnectionId: string | null; // Currently selected connection
+  layoutType: 'hierarchical' | 'web' | 'snake' | 'command';
   viewBox: ViewBox;              // Canvas viewport
   zoomLevel: number;             // Current zoom level
-  connections: Connection[];     // All connections between nodes
   
   // Actions
-  createNode: (parentId: string, text?: string) => void;
-  updateNode: (id: string, updates: Partial<Node>) => void;
+  createNode: (text?: string, nodeType?: string) => void;
+  createConnection: (from: string, to: string, type?: string) => void;
   deleteNode: (id: string) => void;
+  deleteConnection: (id: string) => void;
+  setLayoutType: (type: string) => void;
+  updateNode: (id: string, updates: Partial<Node>) => void;
   selectNode: (id: string) => void;
+  selectConnection: (id: string | null) => void;
   setZoom: (level: number) => void;
   setViewBox: (viewBox: ViewBox) => void;
-  updateNodePosition: (id: string, x: number, y: number) => void;
+  commitNodePosition: (id: string, x: number, y: number) => void;
+  recalculateLayout: () => void;
+  resetForDevelopment: () => void;
 }
 
 export interface UIState {
@@ -57,6 +90,8 @@ export interface UIState {
   isPanning: boolean;
   showHelp: boolean;
   exportProgress: number;
+  draggedNodeId: string | null;
+  dragStartPos: { x: number; y: number } | null;
 }
 
 export type NodeCategory = 0 | 1 | 2 | 3 | 4 | 5;

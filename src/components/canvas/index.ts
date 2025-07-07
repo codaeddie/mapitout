@@ -8,4 +8,4 @@
  */
 
 export { ConnectionLayer } from './ConnectionLayer';
-export { NodeLayer } from './NodeLayer'; 
+// NodeLayer has been replaced with NodeComponent in nodes/NodeComponent.tsx 

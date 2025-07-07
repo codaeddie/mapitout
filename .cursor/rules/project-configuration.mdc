@@ -1,0 +1,233 @@
+---
+# NOTE: For initial project setup and bootstrapping, see [project-setup.mdc](mdc:project-setup.mdc).
+# This file covers ongoing configuration, build, and environment management.
+---
+
+# MapItOut Project Configuration
+
+## Project Overview
+
+MapItOut is a professional mind mapping tool built with React 18, TypeScript, Vite, and Zustand. The project uses a hybrid Canvas/DOM rendering approach for optimal performance and interactivity.
+
+## Core Configuration Files
+
+### Package Configuration
+[package.json](mdc:package.json) - Dependencies, scripts, and project metadata
+
+**Key Dependencies:**
+- React 18 with TypeScript
+- Vite for build tooling
+- Zustand for state management
+- Tailwind CSS for styling
+- HTML5 Canvas for rendering
+
+**Development Scripts:**
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+```
+
+### Vite Configuration
+[vite.config.ts](mdc:vite.config.ts) - Build tool configuration
+
+**Key Features:**
+- TypeScript support
+- React plugin
+- Development server with HMR
+- Production optimization
+- Environment variable handling
+
+### TypeScript Configuration
+[tsconfig.json](mdc:tsconfig.json) - TypeScript compiler settings
+[tsconfig.app.json](mdc:tsconfig.app.json) - App-specific TypeScript config
+
+**Key Settings:**
+- Strict type checking
+- React JSX support
+- Module resolution
+- Path mapping
+
+### Tailwind Configuration
+[tailwind.config.js](mdc:tailwind.config.js) - CSS framework configuration
+
+**Theme Customization:**
+- Dark theme colors
+- Custom node colors
+- Responsive breakpoints
+- Component styling
+
+### ESLint Configuration
+[eslint.config.js](mdc:eslint.config.js) - Code quality and style rules
+
+## Environment Configuration
+
+### Development Environment
+```typescript
+// Environment detection
+const isDevelopment = import.meta.env.DEV;
+const isProduction = import.meta.env.PROD;
+const mode = import.meta.env.MODE;
+```
+
+### Environment Variables
+```bash
+# Development
+VITE_DEV_MODE=true
+VITE_API_URL=http://localhost:3000
+
+# Production
+VITE_API_URL=https://api.mapitout.com
+```
+
+## Build Configuration
+
+### Development Build
+- Hot Module Replacement (HMR)
+- Source maps enabled
+- Fast refresh for React
+- Development server on localhost:5173
+
+### Production Build
+- Code splitting and optimization
+- Tree shaking
+- Minification
+- Asset optimization
+- Service worker support (future)
+
+## Project Structure
+
+### Source Organization
+```
+src/
+├── components/          # React components
+│   ├── canvas/         # Canvas rendering
+│   ├── nodes/          # Node components
+│   └── ui/             # UI controls
+├── hooks/              # Custom React hooks
+├── stores/             # Zustand stores
+├── types/              # TypeScript definitions
+├── utils/              # Utility functions
+└── assets/             # Static assets
+```
+
+### Component Architecture
+- **Canvas Layer**: Connection lines and visual effects
+- **DOM Layer**: Interactive node elements
+- **State Layer**: Zustand store management
+- **Utility Layer**: Positioning and export functions
+
+## Development Workflow
+
+### Local Development
+1. **Clone and install**: `npm install`
+2. **Start dev server**: `npm run dev`
+3. **Open browser**: http://localhost:5173
+4. **Make changes**: Hot reload enabled
+5. **Test features**: Development tools available
+
+### Code Quality
+1. **TypeScript**: Strict type checking
+2. **ESLint**: Code style enforcement
+3. **Prettier**: Code formatting
+4. **Testing**: Unit tests (future)
+
+### State Management
+1. **Development**: Fresh state on reload
+2. **Production**: Full localStorage persistence
+3. **Corruption**: Automatic detection and recovery
+4. **Debugging**: Development tools and logging
+
+## Performance Configuration
+
+### Rendering Optimization
+- **60fps target**: Smooth interactions
+- **Virtualization**: Large node counts
+- **Debouncing**: Expensive operations
+- **Canvas optimization**: Efficient drawing
+
+### Bundle Optimization
+- **Code splitting**: Route-based
+- **Tree shaking**: Unused code removal
+- **Minification**: Production builds
+- **Asset optimization**: Image compression
+
+## Deployment Configuration
+
+### Build Process
+```bash
+npm run build          # Create production build
+npm run preview        # Test production build
+```
+
+### Output Structure
+```
+dist/
+├── index.html         # Entry point
+├── assets/            # Optimized assets
+│   ├── js/           # JavaScript bundles
+│   ├── css/          # CSS bundles
+│   └── images/       # Optimized images
+└── favicon.ico       # App icon
+```
+
+### Hosting Considerations
+- **Static hosting**: Netlify, Vercel, GitHub Pages
+- **CDN**: Asset delivery optimization
+- **HTTPS**: Required for service workers
+- **Caching**: Browser and CDN caching
+
+## Configuration Best Practices
+
+### Environment Management
+1. **Use environment variables** for configuration
+2. **Separate dev/prod settings**
+3. **Validate configuration** on startup
+4. **Provide sensible defaults**
+
+### Build Optimization
+1. **Minimize bundle size**
+2. **Optimize asset loading**
+3. **Enable compression**
+4. **Use modern JavaScript features**
+
+### Development Experience
+1. **Fast feedback loops**
+2. **Comprehensive error messages**
+3. **Development tools**
+4. **Hot reload capabilities**
+
+## Troubleshooting
+
+### Common Issues
+1. **TypeScript errors**: Check type definitions
+2. **Build failures**: Verify dependencies
+3. **Runtime errors**: Check browser console
+4. **Performance issues**: Profile with DevTools
+
+### Debug Commands
+```bash
+# Check TypeScript
+npx tsc --noEmit
+
+# Check ESLint
+npm run lint
+
+# Check dependencies
+npm audit
+
+# Clear cache
+npm run clean
+```
+
+### Environment Debugging
+```typescript
+// Check environment
+console.log('Environment:', {
+  isDev: import.meta.env.DEV,
+  isProd: import.meta.env.PROD,
+  mode: import.meta.env.MODE,
+  baseUrl: import.meta.env.BASE_URL,
+});
+```

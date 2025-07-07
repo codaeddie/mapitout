@@ -1,19 +1,17 @@
 ---
-description: 
+description: React and TypeScript patterns for MapItOut components
+type: auto_attached
 globs: src/components/**/*.tsx,src/hooks/**/*.ts
 alwaysApply: false
 ---
----
-description: React and TypeScript patterns for MapItOut components
-type: auto_attached
-globs: ["src/components/**/*.tsx", "src/hooks/**/*.ts"]
----
+
 
 # React + TypeScript Patterns for MapItOut
 
 ## Component Patterns
 
 **Functional Components Only:**
+
 ```typescript
 interface NodeComponentProps {
   node: Node;
@@ -28,6 +26,7 @@ function NodeComponent({ node, isSelected, onSelect, onEdit }: NodeComponentProp
 ```
 
 **Custom Hooks Pattern:**
+
 ```typescript
 function useKeyboardNavigation() {
   const selectNode = useMapStore(state => state.selectNode);
@@ -66,6 +65,7 @@ type NodeCategory = typeof NODE_CATEGORIES[keyof typeof NODE_CATEGORIES];
 ## React Performance Patterns
 
 **Memoization:**
+
 ```typescript
 const NodeComponent = React.memo(({ node, isSelected, onSelect }: NodeComponentProps) => {
   const handleClick = useCallback(() => {
@@ -81,6 +81,7 @@ const NodeComponent = React.memo(({ node, isSelected, onSelect }: NodeComponentP
 ```
 
 **Avoid Inline Functions:**
+
 ```typescript
 // Bad
 <button onClick={() => handleClick(node.id)}>
@@ -94,6 +95,7 @@ const handleClick = useCallback(() => {
 ## Event Handling
 
 **Keyboard Events:**
+
 ```typescript
 const handleKeyDown = useCallback((event: KeyboardEvent) => {
   // Prevent default for handled keys
@@ -120,6 +122,7 @@ const handleKeyDown = useCallback((event: KeyboardEvent) => {
 ## Error Handling
 
 **Error Boundaries:**
+
 ```typescript
 interface ErrorBoundaryState {
   hasError: boolean;

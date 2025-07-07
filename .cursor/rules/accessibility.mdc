@@ -1,0 +1,20 @@
+# Accessibility and Keyboard Navigation
+
+This rule covers accessibility best practices for MapItOut, including ARIA roles, keyboard navigation, and focus management.
+
+- **Node accessibility:** `src/components/nodes/NodeComponent.tsx`
+- **Toolbar accessibility:** `src/components/ui/Toolbar.tsx`
+
+## Key Points
+
+- All interactive elements must be keyboard accessible (tabIndex, Enter/Space activation).
+- Nodes use `role="treeitem"`, `aria-selected`, `aria-level`, and `aria-expanded` as appropriate.
+- Toolbar buttons use `aria-label` and are focusable.
+- Focus is managed so that selected nodes and active controls are always visible and accessible.
+- Screen reader users can navigate the map structure and toolbar.
+- Keyboard shortcuts are documented and discoverable via on-screen help.
+description:
+globs:
+alwaysApply: false
+
+---

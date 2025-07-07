@@ -1,14 +1,13 @@
 /**
  * MapItOut Export Utilities
  * 
- * This file handles exporting mind maps as PNG images and JSON data.
- * Provides high DPI export capabilities and progress tracking.
+ * This file provides functions for exporting mind maps as PNG images.
+ * Uses html2canvas for high-quality rendering with progress tracking.
  * 
- * Update when: Modifying export format, adding new export options, or changing export quality settings.
+ * Update when: Modifying export options, adding new export formats, or changing export logic.
  */
 
 import html2canvas from 'html2canvas';
-import type { Node, Connection } from '../types';
 
 export interface ExportOptions {
   scale?: number;
@@ -16,7 +15,6 @@ export interface ExportOptions {
   width?: number;
   height?: number;
   filename?: string;
-  format?: 'png' | 'json';
 }
 
 export interface ExportProgress {
@@ -31,7 +29,6 @@ const DEFAULT_OPTIONS: Required<ExportOptions> = {
   width: 1600,
   height: 1200,
   filename: `mindmap-${Date.now()}`,
-  format: 'png',
 };
 
 /**
@@ -43,6 +40,17 @@ export async function exportAsPNG(
   onProgress?: (progress: ExportProgress) => void
 ): Promise<string> {
   const config = { ...DEFAULT_OPTIONS, ...options };
+  
+  // Validate container
+  if (!container) {
+    throw new Error('Export container is required');
+  }
+  
+  // Validate options
+  const validationErrors = validateExportOptions(config);
+  if (validationErrors.length > 0) {
+    throw new Error(`Invalid export options: ${validationErrors.join(', ')}`);
+  }
   
   onProgress?.({
     stage: 'preparing',
@@ -63,6 +71,10 @@ export async function exportAsPNG(
       foreignObjectRendering: true,
       imageTimeout: 0,
       removeContainer: false,
+      // Additional quality options
+      letterRendering: true,
+      scrollX: 0,
+      scrollY: 0,
     };
 
     onProgress?.({
@@ -79,7 +91,7 @@ export async function exportAsPNG(
       message: 'Processing image...'
     });
 
-    // Convert to data URL
+    // Convert to data URL with maximum quality
     const dataURL = canvas.toDataURL('image/png', 1.0);
 
     onProgress?.({
@@ -91,7 +103,19 @@ export async function exportAsPNG(
     return dataURL;
   } catch (error) {
     console.error('Export failed:', error);
-    throw new Error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('html2canvas')) {
+        throw new Error('Canvas rendering failed. Please try again or reduce the export size.');
+      } else if (error.message.includes('timeout')) {
+        throw new Error('Export timed out. Please try again with a smaller scale or fewer nodes.');
+      } else {
+        throw new Error(`Export failed: ${error.message}`);
+      }
+    } else {
+      throw new Error('Export failed due to an unknown error. Please try again.');
+    }
   }
 }
 
@@ -99,46 +123,26 @@ export async function exportAsPNG(
  * Download data URL as file
  */
 export function downloadDataURL(dataURL: string, filename: string): void {
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = dataURL;
-  link.style.display = 'none';
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  try {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataURL;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('Download failed:', error);
+    throw new Error('Failed to download file. Please try again.');
+  }
 }
 
 /**
- * Export mind map data as JSON
- */
-export function exportAsJSON(
-  nodes: Map<string, Node>,
-  connections: Connection[],
-  metadata: Record<string, any> = {}
-): string {
-  const exportData = {
-    nodes: Array.from(nodes.entries()),
-    connections,
-    metadata: {
-      exportDate: new Date().toISOString(),
-      version: '1.0',
-      nodeCount: nodes.size,
-      connectionCount: connections.length,
-      ...metadata,
-    },
-  };
-
-  return JSON.stringify(exportData, null, 2);
-}
-
-/**
- * Complete export function with both PNG and JSON
+ * Complete export function for PNG
  */
 export async function exportMindMap(
   container: HTMLElement,
-  nodes: Map<string, Node>,
-  connections: Connection[],
   options: ExportOptions = {},
   onProgress?: (progress: ExportProgress) => void
 ): Promise<void> {
@@ -146,20 +150,8 @@ export async function exportMindMap(
   
   try {
     // Export PNG
-    if (config.format === 'png') {
-      const pngDataURL = await exportAsPNG(container, config, onProgress);
-      downloadDataURL(pngDataURL, `${config.filename}.png`);
-    }
-
-    // Export JSON
-    const jsonData = exportAsJSON(nodes, connections, {
-      exportOptions: config,
-    });
-    const jsonBlob = new Blob([jsonData], { type: 'application/json' });
-    const jsonURL = URL.createObjectURL(jsonBlob);
-    downloadDataURL(jsonURL, `${config.filename}.json`);
-    URL.revokeObjectURL(jsonURL);
-
+    const pngDataURL = await exportAsPNG(container, config, onProgress);
+    downloadDataURL(pngDataURL, `${config.filename}.png`);
   } catch (error) {
     console.error('Export failed:', error);
     throw error;

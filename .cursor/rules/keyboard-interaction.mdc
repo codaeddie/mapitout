@@ -1,13 +1,3 @@
----
-description: 
-globs: src/hooks/use-keyboard-*.ts,src/components/**/*keyboard*.tsx
-alwaysApply: false
----
----
-description: Keyboard navigation and interaction patterns for MapItOut
-type: auto_attached
-globs: ["src/hooks/use-keyboard-*.ts", "src/components/**/*keyboard*.tsx"]
----
 
 # Keyboard Interaction Patterns
 
@@ -15,12 +5,13 @@ globs: ["src/hooks/use-keyboard-*.ts", "src/components/**/*keyboard*.tsx"]
 
 | Key | Action | Context |
 |-----|--------|---------|
-| `Tab` | Create child node | Node selected |
-| `Shift + Space` | Create sibling node | Node selected |
+| `Tab` | Create connected node (context-dependent) | Node selected |
+| `Shift + Space` | Create unconnected node | Node selected |
 | `Enter` | Start/stop text editing | Node selected |
 | `Escape` | Exit edit mode | Text editing |
-| `Delete` | Delete node | Node selected (non-root) |
-| `Arrow Keys` | Navigate nodes | Node selected |
+| `Delete` | Delete node | Node selected |
+| `Arrow Keys` | Navigate connections | Node selected |
+| `1-4` | Switch layout (1=Tree, 2=Web, 3=Flow, 4=Command) | Global |
 | `+` / `-` | Zoom in/out | Global |
 | `Space` | Pan mode toggle | Global |
 
@@ -31,12 +22,15 @@ function useKeyboardNavigation() {
   const { 
     selectedId, 
     nodes, 
+    connections,
+    layoutType,
     createNode, 
     updateNode, 
     deleteNode, 
-    selectNode 
+    selectNode,
+    setLayoutType
   } = useMapStore();
-  
+
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -82,19 +76,27 @@ function useKeyboardNavigation() {
   }, []);
   
   const handleNodeShortcuts = useCallback((event: KeyboardEvent, nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node) return;
+    const { layoutType, createNode, setLayoutType } = useMapStore.getState();
     
     switch (event.key) {
       case 'Tab':
         event.preventDefault();
-        createChildNode(nodeId);
+        // Context-aware creation based on layout type
+        if (layoutType === 'hierarchical') {
+          createNode('New Child', 'leaf'); // Creates hierarchy connection
+        } else if (layoutType === 'web') {
+          createNode('New Spoke', 'leaf'); // Creates hub-spoke connection
+        } else if (layoutType === 'snake') {
+          createNode('New Flow', 'leaf'); // Creates flow connection
+        } else if (layoutType === 'command') {
+          createNode('New Parameter', 'parameter'); // Creates parameter connection
+        }
         break;
         
       case ' ':
         if (event.shiftKey) {
           event.preventDefault();
-          createSiblingNode(nodeId);
+          createNode('New Node', 'leaf'); // Always creates unconnected node
         }
         break;
         
@@ -106,9 +108,27 @@ function useKeyboardNavigation() {
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        if (node.tier > 0) { // Don't delete root node
-          deleteNode(nodeId);
-        }
+        deleteNode(nodeId);
+        break;
+        
+      case '1':
+        event.preventDefault();
+        setLayoutType('hierarchical');
+        break;
+        
+      case '2':
+        event.preventDefault();
+        setLayoutType('web');
+        break;
+        
+      case '3':
+        event.preventDefault();
+        setLayoutType('snake');
+        break;
+        
+      case '4':
+        event.preventDefault();
+        setLayoutType('command');
         break;
         
       case 'ArrowUp':
@@ -131,7 +151,7 @@ function useKeyboardNavigation() {
         navigateRight(nodeId);
         break;
     }
-  }, [nodes, createNode, deleteNode, selectNode]);
+  }, []);
   
   const handleEditingKeyDown = useCallback((event: KeyboardEvent) => {
     if (!editingNodeId) return;
@@ -153,7 +173,7 @@ function useKeyboardNavigation() {
       case 'Tab':
         event.preventDefault();
         stopEditing();
-        createChildNode(editingNodeId);
+        createNode('New Node', 'leaf');
         break;
     }
   }, [editingNodeId]);
@@ -170,60 +190,55 @@ function useKeyboardNavigation() {
 
 ```typescript
 function useNodeNavigation() {
-  const { nodes, selectedId, selectNode } = useMapStore();
+  const { nodes, connections, selectedId, selectNode } = useMapStore();
+  
+  const getConnectedNodes = useCallback((nodeId: string) => {
+    return connections
+      .filter(c => c.from === nodeId || c.to === nodeId)
+      .map(c => c.from === nodeId ? c.to : c.from)
+      .map(id => nodes.get(id))
+      .filter(Boolean) as Node[];
+  }, [connections, nodes]);
   
   const navigateUp = useCallback((nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node || !node.parentId) return;
-    
-    const parent = nodes.get(node.parentId);
-    if (!parent) return;
-    
-    // Find current node's index among siblings
-    const currentIndex = parent.children.indexOf(nodeId);
-    if (currentIndex > 0) {
-      // Select previous sibling
-      selectNode(parent.children[currentIndex - 1]);
-    } else {
-      // Select parent if no previous sibling
-      selectNode(node.parentId);
+    const connectedNodes = getConnectedNodes(nodeId);
+    if (connectedNodes.length > 0) {
+      // Select first connected node (could be improved with better logic)
+      selectNode(connectedNodes[0].id);
     }
-  }, [nodes, selectNode]);
+  }, [getConnectedNodes, selectNode]);
   
   const navigateDown = useCallback((nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node) return;
-    
-    if (node.children.length > 0) {
-      // Select first child
-      selectNode(node.children[0]);
-    } else if (node.parentId) {
-      // Select next sibling
-      const parent = nodes.get(node.parentId);
-      if (parent) {
-        const currentIndex = parent.children.indexOf(nodeId);
-        if (currentIndex < parent.children.length - 1) {
-          selectNode(parent.children[currentIndex + 1]);
-        }
-      }
+    const connectedNodes = getConnectedNodes(nodeId);
+    if (connectedNodes.length > 1) {
+      // Select second connected node if available
+      selectNode(connectedNodes[1].id);
+    } else if (connectedNodes.length === 1) {
+      selectNode(connectedNodes[0].id);
     }
-  }, [nodes, selectNode]);
+  }, [getConnectedNodes, selectNode]);
   
   const navigateLeft = useCallback((nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node || !node.parentId) return;
-    
-    // Select parent
-    selectNode(node.parentId);
-  }, [nodes, selectNode]);
+    // Find connections where this node is the target (incoming connections)
+    const incomingConnections = connections.filter(c => c.to === nodeId);
+    if (incomingConnections.length > 0) {
+      const sourceNode = nodes.get(incomingConnections[0].from);
+      if (sourceNode) {
+        selectNode(sourceNode.id);
+      }
+    }
+  }, [connections, nodes, selectNode]);
   
   const navigateRight = useCallback((nodeId: string) => {
-    const node = nodes.get(nodeId);
-    if (!node || node.children.length === 0) return;
-    
-    // Select first child
-    selectNode(node.children[0]);
-  }, [nodes, selectNode]);
+    // Find connections where this node is the source (outgoing connections)
+    const outgoingConnections = connections.filter(c => c.from === nodeId);
+    if (outgoingConnections.length > 0) {
+      const targetNode = nodes.get(outgoingConnections[0].to);
+      if (targetNode) {
+        selectNode(targetNode.id);
+      }
+    }
+  }, [connections, nodes, selectNode]);
   
   return {
     navigateUp,
@@ -238,30 +253,22 @@ function useNodeNavigation() {
 
 ```typescript
 function useNodeCreation() {
-  const { nodes, createNode, selectNode } = useMapStore();
+  const { layoutType, createNode } = useMapStore();
   
-  const createChildNode = useCallback((parentId: string) => {
-    const parent = nodes.get(parentId);
-    if (!parent) return;
-    
-    // Create new child node
-    createNode(parentId, 'New Node');
-    
-    // The store action will automatically select the new node
-    // and trigger text editing mode
-  }, [nodes, createNode]);
+  const createConnectedNode = useCallback((text = 'New Node') => {
+    // Context-aware node creation based on layout
+    const nodeType = layoutType === 'command' ? 'parameter' : 'leaf';
+    createNode(text, nodeType);
+  }, [layoutType, createNode]);
   
-  const createSiblingNode = useCallback((siblingId: string) => {
-    const sibling = nodes.get(siblingId);
-    if (!sibling || !sibling.parentId) return;
-    
-    // Create new sibling node
-    createNode(sibling.parentId, 'New Node');
-  }, [nodes, createNode]);
+  const createUnconnectedNode = useCallback((text = 'New Node') => {
+    // Always creates unconnected leaf node
+    createNode(text, 'leaf');
+  }, [createNode]);
   
   return {
-    createChildNode,
-    createSiblingNode,
+    createConnectedNode,
+    createUnconnectedNode,
   };
 }
 ```
@@ -365,15 +372,16 @@ function useFocusManagement() {
 ## Accessibility Support
 
 ```typescript
-// Add ARIA attributes and keyboard navigation hints
-function NodeComponent({ node, isSelected }: NodeComponentProps) {
+function NodeComponent({ node, isSelected, connections }: NodeComponentProps) {
+  const connectedCount = connections.filter(c => c.from === node.id || c.to === node.id).length;
+  
   return (
     <div
       data-node-id={node.id}
       role="treeitem"
       aria-selected={isSelected}
-      aria-expanded={node.children.length > 0}
-      aria-level={node.tier + 1}
+      aria-expanded={connectedCount > 0}
+      aria-level={node.layoutHints.layer || 1}
       tabIndex={isSelected ? 0 : -1}
       className={`node ${isSelected ? 'selected' : ''}`}
     >
@@ -382,9 +390,14 @@ function NodeComponent({ node, isSelected }: NodeComponentProps) {
       {/* Keyboard hints for selected node */}
       {isSelected && (
         <div className="sr-only">
-          Press Tab to create child, Shift+Space for sibling, Enter to edit
+          Press Tab to create connected node, Shift+Space for unconnected, Enter to edit, 1-4 to switch layouts
         </div>
       )}
+    </div>
+  );
+}
+```
+
     </div>
   );
 }

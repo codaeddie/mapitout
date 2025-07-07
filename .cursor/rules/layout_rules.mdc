@@ -1,0 +1,377 @@
+
+# Layout Engine Architecture
+
+## Core Layout Engine Interface
+
+```typescript
+interface LayoutEngine {
+  type: 'hierarchical' | 'web' | 'snake' | 'command';
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void;
+}
+```
+
+## Implementation: Hierarchical Layout
+
+```typescript
+export class HierarchicalLayout implements LayoutEngine {
+  type = 'hierarchical' as const;
+  
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void {
+    const hierarchy = this.buildHierarchy(nodes, connections);
+    this.positionHierarchy(hierarchy, nodes);
+  }
+  
+  private buildHierarchy(nodes: Map<string, Node>, connections: Connection[]) {
+    const children = new Map<string, string[]>();
+    const parents = new Map<string, string>();
+    
+    // Build parent-child relationships from hierarchy connections
+    connections.forEach(conn => {
+      if (conn.type === 'hierarchy') {
+        children.set(conn.from, [...(children.get(conn.from) || []), conn.to]);
+        parents.set(conn.to, conn.from);
+      }
+    });
+    
+    return { children, parents };
+  }
+  
+  private positionHierarchy(hierarchy: any, nodes: Map<string, Node>): void {
+    const { children } = hierarchy;
+    const rootNode = Array.from(nodes.values()).find(n => n.nodeType === 'root');
+    if (!rootNode) return;
+    
+    // Center root
+    rootNode.x = 800;
+    rootNode.y = 400;
+    
+    // Position children in tiers
+    this.positionTier(rootNode.id, children, nodes, 1, 200);
+  }
+  
+  private positionTier(parentId: string, children: Map<string, string[]>, nodes: Map<string, Node>, tier: number, radius: number): void {
+    const childIds = children.get(parentId) || [];
+    const parent = nodes.get(parentId);
+    if (!parent || childIds.length === 0) return;
+    
+    const angleStep = (2 * Math.PI) / childIds.length;
+    
+    childIds.forEach((childId, index) => {
+      const child = nodes.get(childId);
+      if (!child || child.layoutHints.manualPosition) return;
+      
+      const angle = angleStep * index;
+      child.x = parent.x + radius * Math.cos(angle);
+      child.y = parent.y + radius * Math.sin(angle);
+      
+      // Recursively position grandchildren
+      this.positionTier(childId, children, nodes, tier + 1, radius * 0.8);
+    });
+  }
+}
+```
+
+## Implementation: Web Layout (Hub-Spoke)
+
+```typescript
+export class WebLayout implements LayoutEngine {
+  type = 'web' as const;
+  
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void {
+    const hub = this.findHubNode(nodes, connections);
+    if (!hub) return;
+    
+    // Center hub
+    if (!hub.layoutHints.manualPosition) {
+      hub.x = 800;
+      hub.y = 400;
+    }
+    
+    // Position spokes
+    this.positionSpokes(hub, nodes, connections);
+  }
+  
+  private findHubNode(nodes: Map<string, Node>, connections: Connection[]): Node | null {
+    // Priority 1: Node explicitly marked as hub
+    for (const node of nodes.values()) {
+      if (node.nodeType === 'hub') return node;
+    }
+    
+    // Priority 2: Node with most connections
+    let maxConnections = 0;
+    let hubNode: Node | null = null;
+    
+    for (const node of nodes.values()) {
+      const connectionCount = connections.filter(c => 
+        c.from === node.id || c.to === node.id
+      ).length;
+      
+      if (connectionCount > maxConnections) {
+        maxConnections = connectionCount;
+        hubNode = node;
+      }
+    }
+    
+    // Priority 3: Root node as fallback
+    return hubNode || Array.from(nodes.values()).find(n => n.nodeType === 'root') || null;
+  }
+  
+  private positionSpokes(hub: Node, nodes: Map<string, Node>, connections: Connection[]): void {
+    const connectedIds = this.getConnectedNodeIds(hub.id, connections);
+    const spokes = connectedIds.map(id => nodes.get(id)).filter(Boolean) as Node[];
+    
+    if (spokes.length === 0) return;
+    
+    const baseRadius = 250;
+    const angleStep = (2 * Math.PI) / spokes.length;
+    
+    spokes.forEach((spoke, index) => {
+      if (spoke.layoutHints.manualPosition) return;
+      
+      const angle = angleStep * index;
+      spoke.x = hub.x + baseRadius * Math.cos(angle);
+      spoke.y = hub.y + baseRadius * Math.sin(angle);
+    });
+  }
+  
+  private getConnectedNodeIds(hubId: string, connections: Connection[]): string[] {
+    return connections
+      .filter(c => c.from === hubId || c.to === hubId)
+      .map(c => c.from === hubId ? c.to : c.from);
+  }
+}
+```
+
+## Implementation: Snake Layout (Force-Directed Flow)
+
+```typescript
+export class SnakeLayout implements LayoutEngine {
+  type = 'snake' as const;
+  
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void {
+    // Force-directed layout with flow bias
+    this.runForceSimulation(nodes, connections);
+  }
+  
+  private runForceSimulation(nodes: Map<string, Node>, connections: Connection[]): void {
+    const iterations = 50;
+    const nodeArray = Array.from(nodes.values());
+    
+    for (let i = 0; i < iterations; i++) {
+      // Calculate forces for each node
+      nodeArray.forEach(node => {
+        if (node.layoutHints.manualPosition) return;
+        
+        const forces = this.calculateForces(node, nodeArray, connections);
+        
+        // Apply forces with cooling
+        const cooling = 1 - (i / iterations);
+        node.x += forces.x * cooling * 2;
+        node.y += forces.y * cooling * 2;
+      });
+    }
+  }
+  
+  private calculateForces(node: Node, allNodes: Node[], connections: Connection[]): { x: number; y: number } {
+    let fx = 0, fy = 0;
+    
+    // Repulsion from all other nodes
+    allNodes.forEach(other => {
+      if (other.id === node.id) return;
+      
+      const dx = node.x - other.x;
+      const dy = node.y - other.y;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      
+      const repulsion = 1000 / (distance * distance);
+      fx += (dx / distance) * repulsion;
+      fy += (dy / distance) * repulsion;
+    });
+    
+    // Attraction to connected nodes
+    connections.forEach(conn => {
+      const isConnected = conn.from === node.id || conn.to === node.id;
+      if (!isConnected) return;
+      
+      const otherId = conn.from === node.id ? conn.to : conn.from;
+      const other = allNodes.find(n => n.id === otherId);
+      if (!other) return;
+      
+      const dx = other.x - node.x;
+      const dy = other.y - node.y;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      
+      const attraction = distance * 0.1;
+      fx += (dx / distance) * attraction;
+      fy += (dy / distance) * attraction;
+    });
+    
+    // Flow bias (slight rightward and downward drift)
+    fx += 5;
+    fy += 2;
+    
+    return { x: fx, y: fy };
+  }
+}
+```
+
+## Implementation: Command Layout (Parameter Hub)
+
+```typescript
+export class CommandLayout implements LayoutEngine {
+  type = 'command' as const;
+  
+  calculatePositions(nodes: Map<string, Node>, connections: Connection[]): void {
+    const hub = this.findCommandHub(nodes);
+    if (!hub) return;
+    
+    // Center command hub
+    if (!hub.layoutHints.manualPosition) {
+      hub.x = 800;
+      hub.y = 400;
+    }
+    
+    // Group and position parameters
+    this.positionParameterGroups(hub, nodes, connections);
+  }
+  
+  private findCommandHub(nodes: Map<string, Node>): Node | null {
+    // Find the command node (should be root or explicitly marked)
+    return Array.from(nodes.values()).find(n => 
+      n.nodeType === 'root' || n.nodeType === 'hub'
+    ) || null;
+  }
+  
+  private positionParameterGroups(hub: Node, nodes: Map<string, Node>, connections: Connection[]): void {
+    const parameters = this.getParametersByCategory(hub, nodes, connections);
+    const categories = Object.keys(parameters);
+    
+    if (categories.length === 0) return;
+    
+    const anglePerCategory = (2 * Math.PI) / categories.length;
+    
+    categories.forEach((category, catIndex) => {
+      const categoryNodes = parameters[category];
+      const categoryAngle = anglePerCategory * catIndex;
+      
+      this.positionCategoryNodes(hub, categoryNodes, categoryAngle);
+    });
+  }
+  
+  private getParametersByCategory(hub: Node, nodes: Map<string, Node>, connections: Connection[]): Record<string, Node[]> {
+    const connectedIds = connections
+      .filter(c => c.from === hub.id || c.to === hub.id)
+      .map(c => c.from === hub.id ? c.to : c.from);
+    
+    const parameters = connectedIds
+      .map(id => nodes.get(id))
+      .filter(Boolean) as Node[];
+    
+    // Group by category (using node.category)
+    const grouped: Record<string, Node[]> = {};
+    parameters.forEach(param => {
+      const cat = `category_${param.category}`;
+      grouped[cat] = grouped[cat] || [];
+      grouped[cat].push(param);
+    });
+    
+    return grouped;
+  }
+  
+  private positionCategoryNodes(hub: Node, categoryNodes: Node[], categoryAngle: number): void {
+    const baseRadius = 200;
+    const radiusStep = 50;
+    
+    categoryNodes.forEach((node, index) => {
+      if (node.layoutHints.manualPosition) return;
+      
+      const radius = baseRadius + (index * radiusStep);
+      node.x = hub.x + radius * Math.cos(categoryAngle);
+      node.y = hub.y + radius * Math.sin(categoryAngle);
+    });
+  }
+}
+```
+
+## Layout Engine Factory
+
+```typescript
+export const layoutEngines = {
+  hierarchical: new HierarchicalLayout(),
+  web: new WebLayout(),
+  snake: new SnakeLayout(),
+  command: new CommandLayout(),
+};
+
+export function getLayoutEngine(type: string): LayoutEngine | null {
+  return layoutEngines[type as keyof typeof layoutEngines] || null;
+}
+```
+
+## Layout Algorithm Selection Logic
+
+```typescript
+// In map-store.ts
+setLayoutType: (type: string) => {
+  const { nodes, connections } = get();
+  
+  set(state => {
+    const engine = layoutEngines[type as keyof typeof layoutEngines];
+    if (engine) {
+      // Recalculate positions with new layout
+      engine.calculatePositions(state.nodes, state.connections);
+    }
+    
+    return { layoutType: type as any };
+  });
+}
+```
+
+## Manual Position Handling
+
+All layout engines respect `node.layoutHints.manualPosition`:
+
+```typescript
+// In each layout algorithm
+if (node.layoutHints.manualPosition) {
+  return; // Skip automatic positioning
+}
+```
+
+## Performance Considerations
+
+1. **Limit iterations** in force-directed layouts (Snake)
+2. **Skip manual positions** in all algorithms
+3. **Cache calculations** where possible
+4. **Debounce layout updates** during rapid changes
+
+## Layout Testing Strategy
+
+For each layout:
+
+1. **Create nodes** - Verify correct positioning
+2. **Add connections** - Verify layout updates
+3. **Switch layouts** - Verify same data, different positions
+4. **Manual drag** - Verify manual positions respected
+5. **Performance** - Verify smooth updates with 50+ nodes
+
+## Future Layout Extensions
+
+Easy to add new layouts:
+
+1. Implement `LayoutEngine` interface
+2. Add to `layoutEngines` factory  
+3. Add button to layout switcher
+4. Test with existing data
+
+Examples:
+
+- **Grid Layout**: Regular grid positioning
+- **Circular Layout**: Nodes in concentric circles
+- **Timeline Layout**: Linear progression with branches
+- **Org Chart Layout**: Traditional hierarchical boxes
+
+- **Grid Layout**: Regular grid positioning
+- **Circular Layout**: Nodes in concentric circles
+- **Timeline Layout**: Linear progression with branches
+- **Org Chart Layout**: Traditional hierarchical boxes

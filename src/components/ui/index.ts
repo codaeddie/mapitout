@@ -7,4 +7,6 @@
  * Update when: Adding new UI components or modifying UI exports.
  */
 
-export { Toolbar } from './Toolbar'; 
+export { LayoutSwitcher } from './LayoutSwitcher';
+
+// Toolbar component has been migrated to MapCanvas.tsx as FloatingToolbar 

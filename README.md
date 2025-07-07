@@ -1,9 +1,6 @@
 # mapitout
+
 Chaos mapped
-
-
-
-# MapItOut - Software Design Document
 
 ## Executive Summary
 
@@ -97,7 +94,7 @@ interface MapState {
 
 ### Component Architecture
 
-```
+```markdown
 App
 ├── MapCanvas
 │   ├── ConnectionLayer (SVG)
@@ -419,19 +416,19 @@ async function exportMapAsPNG() {
 
     : Large node counts may cause slowdowns
 
-    - *Mitigation*: Implement virtualization early
+  - *Mitigation*: Implement virtualization early
 
 - Export Quality
 
     : html2canvas may not capture all visual elements
 
-    - *Mitigation*: Test export functionality with complex maps
+  - *Mitigation*: Test export functionality with complex maps
 
 - Browser Compatibility
 
     : Different rendering behaviors across browsers
 
-    - *Mitigation*: Cross-browser testing during development
+  - *Mitigation*: Cross-browser testing during development
 
 ### User Experience Risks
 
@@ -439,13 +436,13 @@ async function exportMapAsPNG() {
 
     : Keyboard shortcuts may be unfamiliar
 
-    - *Mitigation*: On-screen help and progressive disclosure
+  - *Mitigation*: On-screen help and progressive disclosure
 
 - Layout Complexity
 
     : Automatic positioning may not always be optimal
 
-    - *Mitigation*: Manual override capabilities
+  - *Mitigation*: Manual override capabilities
 
 ## Conclusion
 

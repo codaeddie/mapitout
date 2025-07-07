@@ -14,7 +14,7 @@ interface UIStore extends UIState {
   setDragging: (isDragging: boolean, offset?: { x: number; y: number }) => void;
   setPanning: (isPanning: boolean) => void;
   toggleHelp: () => void;
-  setExportProgress: (progress: number) => void;
+  setExportProgress: (progress: number, stage?: string) => void;
   resetUI: () => void;
   // Node dragging
   draggedNodeId: string | null;
@@ -22,6 +22,8 @@ interface UIStore extends UIState {
   startDragging: (nodeId: string, startPos: { x: number; y: number }) => void;
   updateDragOffset: (offset: { x: number; y: number }) => void;
   stopDragging: () => void;
+  // Export state
+  exportStage: string;
 }
 
 const useUIStore = create<UIStore>((set) => ({
@@ -30,6 +32,7 @@ const useUIStore = create<UIStore>((set) => ({
   isPanning: false,
   showHelp: false,
   exportProgress: 0,
+  exportStage: '',
   draggedNodeId: null,
   dragStartPos: null,
 
@@ -49,8 +52,11 @@ const useUIStore = create<UIStore>((set) => ({
     set((state) => ({ showHelp: !state.showHelp }));
   },
 
-  setExportProgress: (progress: number) => {
-    set({ exportProgress: Math.max(0, Math.min(100, progress)) });
+  setExportProgress: (progress: number, stage?: string) => {
+    set({ 
+      exportProgress: Math.max(0, Math.min(100, progress)),
+      exportStage: stage || ''
+    });
   },
 
   resetUI: () => {
@@ -60,6 +66,7 @@ const useUIStore = create<UIStore>((set) => ({
       isPanning: false,
       showHelp: false,
       exportProgress: 0,
+      exportStage: '',
       draggedNodeId: null,
       dragStartPos: null,
     });

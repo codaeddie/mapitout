@@ -1,9 +1,6 @@
 ---
-description: MapItOut project setup and initialization guide
-globs: 
-alwaysApply: false
----
----
+# NOTE: For ongoing configuration and build details, see [project-configuration.mdc](mdc:project-configuration.mdc).
+# This file focuses on initial project setup and bootstrapping only.
 description: MapItOut project setup and initialization guide
 type: agent_requested
 ---
@@ -31,7 +28,7 @@ npx tailwindcss init -p
 
 ## Project Structure
 
-```
+```markdown
 mapitout/
 ├── src/
 │   ├── components/
@@ -84,6 +81,7 @@ mapitout/
 ## Essential Configuration Files
 
 **tailwind.config.js:**
+
 ```javascript
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -112,6 +110,7 @@ export default {
 ```
 
 **tsconfig.json updates:**
+
 ```json
 {
   "compilerOptions": {
@@ -300,6 +299,11 @@ git commit -m "docs: update setup instructions"
 - [ ] Tailwind CSS configured with custom colors
 - [ ] Zustand store structure defined
 - [ ] Basic component structure created
+- [ ] Keyboard event listeners implemented
+- [ ] Canvas rendering pipeline established
+- [ ] Export functionality scaffolded
+
+- [ ] Performance monitoring hooks added
 - [ ] Keyboard event listeners implemented
 - [ ] Canvas rendering pipeline established
 - [ ] Export functionality scaffolded

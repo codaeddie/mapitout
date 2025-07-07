@@ -1,13 +1,13 @@
 /**
- * MapItOut Positioning Utilities
+ * MapItOut Node Positioning Utilities
  * 
- * This file contains algorithms for calculating node positions in the radial layout system.
- * Handles automatic positioning, manual overrides, and collision detection.
+ * This file provides utilities for calculating node positions, handling collisions,
+ * and managing viewport coordinates. Uses layout hints for positioning logic.
  * 
- * Update when: Modifying layout algorithms, adding new positioning strategies, or changing node spacing.
+ * Update when: Modifying positioning algorithms, adding collision detection, or changing coordinate systems.
  */
 
-import type { Node } from '@/types';
+import type { Node } from '../types';
 
 export interface Position {
   x: number;
@@ -44,7 +44,10 @@ export function calculateNodePosition(
     return { x: 800, y: 600 };
   }
 
-  if (node.tier === 1) {
+  // Use layout hints for positioning
+  const layer = node.layoutHints?.layer || 1;
+  
+  if (layer === 1) {
     // Primary categories - circle around root
     const siblingIndex = siblings.findIndex(s => s.id === node.id);
     const totalSiblings = siblings.length;
@@ -60,15 +63,14 @@ export function calculateNodePosition(
   const siblingIndex = siblings.findIndex(s => s.id === node.id);
   const totalSiblings = siblings.length;
   
-  // Calculate base angle from parent's position relative to grandparent
-  const grandparent = parent.parentId ? siblings.find(s => s.id === parent.parentId) : null;
+  // Calculate base angle from parent's position or use layout hints
   let baseAngle = 0;
   
-  if (grandparent) {
-    baseAngle = Math.atan2(parent.y - grandparent.y, parent.x - grandparent.x);
+  if (parent.layoutHints?.angle !== undefined) {
+    baseAngle = parent.layoutHints.angle;
   } else {
-    // If no grandparent, use parent's angle or default to 0
-    baseAngle = parent.angle || 0;
+    // Calculate angle based on parent's position relative to center
+    baseAngle = Math.atan2(parent.y - 600, parent.x - 800); // Assuming center at 800,600
   }
 
   // Spread children in an arc

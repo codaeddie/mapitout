@@ -1,12 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
----
-description: Core MapItOut development guidelines and architecture patterns
-type: always
----
 
 # MapItOut Core Development Rules
 
@@ -18,24 +9,51 @@ You are building MapItOut, a professional mind mapping tool for creating structu
 **Tech Stack**: React 18, TypeScript, Vite, Tailwind CSS, Zustand, HTML5 Canvas
 **Visual Style**: Dark theme, structured radial layouts, professional color coding
 
+## System Architecture
+
+```markdown
+┌─────────────────────────────────────┐
+│           UI Layer                  │
+│  (React Components + Tailwind)      │
+├─────────────────────────────────────┤
+│         State Layer                 │
+│      (Zustand + Persistence)        │
+├─────────────────────────────────────┤
+│        Rendering Layer              │
+│    (Canvas + DOM Hybrid)            │
+├─────────────────────────────────────┤
+│        Utility Layer                │
+│   (Positioning + Export + Utils)    │
+└─────────────────────────────────────┘
+```
+
 ## Core Architecture
 
 **Hybrid Rendering Approach:**
-- Canvas Layer: Connection lines and visual effects
-- DOM Layer: Node elements for text editing and interactions
-- Coordinate System: Consistent mapping between Canvas (SVG coords) and DOM (CSS positioning)
+
+- **Canvas Layer**: Connection lines and visual effects (performance-critical)
+- **DOM Layer**: Node elements for text editing and interactions (accessibility)
+- **Coordinate System**: Consistent mapping between Canvas and DOM positioning
 
 **State Management Pattern:**
+
 ```typescript
 interface MapState {
   nodes: Map<string, Node>;
+  connections: Connection[];
   selectedId: string | null;
+  layoutType: 'hierarchical' | 'web' | 'snake' | 'command';
   viewBox: { x: number; y: number; width: number; height: number };
+  zoomLevel: number;
   
   // Actions return void, update state directly
-  createNode: (parentId: string, text?: string) => void;
+  createNode: (text?: string, nodeType?: string) => void;
+  createConnection: (from: string, to: string, type?: string) => void;
   updateNode: (id: string, updates: Partial<Node>) => void;
   selectNode: (id: string) => void;
+  setLayoutType: (type: string) => void;
+  setZoom: (level: number) => void;
+  commitNodePosition: (id: string, x: number, y: number) => void;
 }
 ```
 
@@ -47,11 +65,23 @@ interface Node {
   text: string;            // User-visible text
   x: number;               // Canvas X coordinate
   y: number;               // Canvas Y coordinate
-  parentId: string | null; // null for root node
-  children: string[];      // Array of child node IDs
-  tier: number;            // Depth level (0 = root)
+  nodeType: 'root' | 'hub' | 'leaf' | 'category' | 'parameter';
   category: number;        // Color category (0-5)
   isEditing: boolean;      // Text editing state
+  layoutHints: {
+    manualPosition?: boolean; // User dragged
+    angle?: number;          // For radial layouts
+    layer?: number;          // For hierarchical layouts
+    sticky?: boolean;        // Position locked
+  };
+}
+
+interface Connection {
+  id: string;
+  from: string;
+  to: string;
+  type: 'hierarchy' | 'association' | 'flow' | 'parameter';
+  style: 'straight' | 'curved';
 }
 ```
 
@@ -68,14 +98,32 @@ const NODE_COLORS = {
 } as const;
 ```
 
-## Keyboard Shortcuts (Primary Interface)
+## Context-Aware Keyboard Shortcuts
 
-- `Tab`: Create child node
-- `Shift + Space`: Create sibling node
+- `Tab`: Create connected node (context-dependent)
+- `Shift + Space`: Create unconnected node  
 - `Enter`: Start/stop text editing
+- `Shift + Enter`: New line in edit mode
 - `Escape`: Exit edit mode
 - `Arrow Keys`: Navigate between nodes
 - `Delete`: Delete selected node
+- `1-4`: Switch layout type (1=Tree, 2=Web, 3=Flow, 4=Command)
+- `Ctrl/Cmd + +/-`: Zoom in/out
+- `Ctrl/Cmd + 0`: Recalculate layout
+
+## Environment-Specific Behavior
+
+**Development Mode:**
+- Fresh state on every reload
+- Development tools and logging
+- Reset functionality available
+- Hot reload optimization
+
+**Production Mode:**
+- Full localStorage persistence
+- Performance optimization
+- Minimal logging
+- User data preservation
 
 ## Performance Requirements
 
@@ -83,10 +131,22 @@ const NODE_COLORS = {
 - **< 100ms response time** for all interactions
 - **Virtualization** for large node counts
 - **Debounced updates** for expensive operations
+- **Canvas optimization** for smooth connection rendering
+
+## Component Architecture
+
+```markdown
+App
+├── MapCanvas (main container)
+│   ├── ConnectionLayer (Canvas)
+│   ├── NodeComponent (DOM)
+│   └── FloatingToolbar (DOM)
+└── Global Event Handlers
+```
 
 ## File Structure
 
-```
+```markdown
 src/
 ├── components/
 │   ├── canvas/           # Canvas rendering components
@@ -97,11 +157,13 @@ src/
 │   ├── use-node-positioning.ts
 │   └── use-canvas-rendering.ts
 ├── stores/
-│   └── map-store.ts      # Zustand store
+│   ├── map-store.ts      # Main Zustand store
+│   └── ui-store.ts       # UI state store
 ├── types/
 │   └── index.ts          # All TypeScript interfaces
 └── utils/
-    ├── positioning.ts    # Layout algorithms
+    ├── layout-engines.ts # Layout algorithms
+    ├── positioning.ts    # Node positioning logic
     ├── export.ts         # PNG export logic
     └── validation.ts     # Input validation
 ```
@@ -111,5 +173,5 @@ src/
 1. **Keyboard Navigation First** - All functionality accessible via keyboard
 2. **Performance** - Smooth 60fps interactions
 3. **Visual Consistency** - Professional technical aesthetic
-
 4. **Export Quality** - High DPI PNG suitable for presentations
+5. **State Management** - Reliable persistence and corruption recovery
