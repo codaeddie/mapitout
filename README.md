@@ -1,179 +1,101 @@
-# MapItOut - Interactive Mind Mapping Tool
+# MapItOut
 
-A modern, keyboard-driven mind mapping application built with React and TypeScript. MapItOut enables rapid creation of hierarchical knowledge structures with smooth interactions and professional visual output.
+Keyboard-driven mind mapping. Tab for children, Enter for siblings. That's it.
 
-## ✨ Current Features
+## What it actually does
 
-### 🎯 Core Functionality
-- **Hierarchical Node Creation**: Build tree-structured mind maps with unlimited depth
-- **Keyboard-Driven Workflow**: Tab for children, Enter for siblings, rapid node creation
-- **Automatic Camera Centering**: Camera follows your selected node for seamless workflow
-- **Multiple Layout Engines**: Choose between different visual arrangements
-- **Real-time Editing**: Inline text editing with keyboard shortcuts
-- **Professional Export**: High-quality PNG export for presentations and documentation
+Creates hierarchical node trees you can visualize two ways - center (mind map) or top (org chart). Navigate with arrow keys, pan with middle mouse, export to PNG. Positions are calculated every frame, never stored.
 
-### 🎨 Visual Design
-- **Modern Dark Theme**: Professional slate color scheme
-- **Tier-Based Colors**: Automatic color assignment based on node hierarchy
-- **Smooth Animations**: 60fps interactions with CSS transforms
-- **Responsive Design**: Adapts to any screen size
-- **Clean Typography**: Optimized for readability and professional appearance
+## Setup
 
-### 🖱️ Interaction Model
-- **Middle Mouse Panning**: Natural canvas navigation (like tldraw, excalidraw)
-- **Click to Select**: Intuitive node selection
-- **Double-click to Edit**: Quick text modification
-- **Keyboard Navigation**: Arrow keys to traverse between nodes
-- **Automatic Centering**: Camera always follows your work
-
-### ⌨️ Keyboard Shortcuts
-| Shortcut | Action |
-|----------|--------|
-| `Tab` | Create child node |
-| `Enter` | Create sibling node |
-| `Shift+Space` | Edit selected node |
-| `Escape` | Clear selection |
-| `Delete/Backspace` | Delete selected node |
-| `Arrow Keys` | Navigate between nodes |
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+ 
-- Modern web browser
-
-### Installation
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd mapitout
-
 # Install dependencies
 npm install
 
-# Start development server
+# Run it
 npm run dev
+
+# Build for production
+npm run build
 ```
 
-### Usage
-1. **Create Root Node**: Start with Tab to create your first node
-2. **Build Hierarchy**: Use Tab for children, Enter for siblings
-3. **Edit Content**: Double-click nodes or use Shift+Space
-4. **Navigate**: Arrow keys to move between nodes
-5. **Pan Canvas**: Middle mouse drag to move around
-6. **Export**: Use the Export PNG button for high-quality output
+## Controls
 
-## 🏗️ Technical Architecture
+- **Tab**: Create child node
+- **Enter**: Create sibling node  
+- **Shift+Space**: Edit selected node
+- **Delete/Backspace**: Delete node
+- **Arrow keys**: Navigate between nodes (kinda broken)
+- **Escape**: Clear selection
+- **Middle mouse drag**: Pan around
+- **H**: Toggle help
 
-### Tech Stack
-- **Frontend**: React 18 with TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Build Tool**: Vite
-- **Layout Engine**: Custom hierarchical positioning algorithms
+The UI has:
+- Layout switcher (center/top view)
+- Export PNG button
+- Home button (centers on root)
+- Hand/Select mode toggle
 
-### Project Structure
-```
-src/
-├── components/          # React components
-│   ├── MapCanvas.tsx   # Main canvas component
-│   ├── nodes/          # Node-related components
-│   └── ui/             # UI components
-├── stores/             # State management
-│   ├── map-store.ts    # Mind map state
-│   └── ui-store.ts     # UI state
-├── hooks/              # Custom React hooks
-├── utils/              # Utility functions
-└── types/              # TypeScript type definitions
-```
+## Files that matter
 
-### Key Components
-- **MapCanvas**: Main rendering and interaction layer
-- **NodeComponent**: Individual node rendering and editing
-- **LayoutSwitcher**: Choose between different layout algorithms
-- **useKeyboardNavigation**: Handles all keyboard interactions
+- `src/components/MapCanvas.tsx`: Main canvas and rendering
+- `src/stores/map-store.ts`: Node data and state (Zustand)
+- `src/utils/layout-engines.ts`: Position calculation algorithms
+- `src/hooks/use-keyboard-navigation.ts`: Keyboard event handling
+- `src/types/index.ts`: TypeScript interfaces
 
-## 🎯 Design Philosophy
+## How it works
 
-MapItOut prioritizes **speed and simplicity** over complexity:
+1. Nodes only store structure:
+   ```typescript
+   {
+     id: string,
+     text: string,
+     parent: string | null,
+     children: string[]
+   }
+   ```
 
-- **Keyboard-First**: Optimized for rapid creation workflows
-- **Automatic Positioning**: Smart layout algorithms handle visual arrangement
-- **Minimal UI**: Clean interface that doesn't get in the way
-- **Professional Output**: Export-ready visuals for documentation
-- **Responsive Performance**: Smooth 60fps interactions at any scale
+2. Every render frame:
+   - Layout engine calculates all positions
+   - Canvas renders nodes at calculated positions
+   - Draws connections between parent/child
 
-## 🔮 Future Roadmap
+3. No position storage = no position bugs = instant layout switching
 
-### Phase 1: Core Mind Mapping Features
-- [ ] **Node Styling**: Custom colors, fonts, and visual themes
-- [ ] **Connection Lines**: Visual links between nodes with different styles
-- [ ] **Node Icons**: Add icons and emojis to nodes
-- [ ] **Text Formatting**: Bold, italic, and basic text styling
-- [ ] **Node Shapes**: Different shapes (circles, diamonds, etc.)
+## Current issues
 
-### Phase 2: Advanced Layout & Organization
-- [ ] **Multiple Layout Types**: Radial, hierarchical, flowchart, timeline
-- [ ] **Manual Positioning**: Drag nodes to custom positions
-- [ ] **Grouping**: Group related nodes together
-- [ ] **Collapsible Branches**: Hide/show node subtrees
-- [ ] **Auto-arrangement**: Smart layout optimization
+- Arrow key navigation logic is wonky between tiers
+- No undo/redo (Ctrl+Z does nothing)
+- Performance tanks after ~200 nodes
+- Text editing is single-line only
+- Export quality could be better
 
-### Phase 3: Collaboration & Sharing
-- [ ] **Real-time Collaboration**: Multiple users editing simultaneously
-- [ ] **Version History**: Track changes and revert to previous versions
-- [ ] **Comments & Notes**: Add annotations to nodes
-- [ ] **Sharing Links**: Public/private sharing of mind maps
-- [ ] **Export Formats**: PDF, SVG, JSON, and more
+## Config
 
-### Phase 4: Advanced Features
-- [ ] **Templates**: Pre-built mind map templates
-- [ ] **Attachments**: Add files, images, and links to nodes
-- [ ] **Search & Filter**: Find nodes and filter by content
-- [ ] **Presentations**: Create slideshows from mind maps
-- [ ] **Integration**: Connect with external tools and APIs
+No config file yet. Canvas size is hardcoded to 1600x800. Colors are in the components. Deal with it.
 
-### Phase 5: Enterprise Features
-- [ ] **User Management**: Authentication and user accounts
-- [ ] **Team Workspaces**: Shared team environments
-- [ ] **Advanced Permissions**: Role-based access control
-- [ ] **Analytics**: Usage statistics and insights
-- [ ] **API Access**: Programmatic access to mind maps
+## Local storage
 
-## 🛠️ Development
+Saves your map to localStorage automatically. Clear your browser data to reset.
 
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+## Architecture decisions
 
-### Development Commands
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript checks
-```
+**Why positions aren't stored:**
+Every other mind mapping tool stores x,y coordinates with nodes. This creates sync bugs, makes layout changes hard, and generally sucks. We calculate positions from structure every frame instead. Slightly less efficient, way more reliable.
 
-### Code Style
-- TypeScript for type safety
-- ESLint for code quality
-- Prettier for formatting
-- Conventional commits for version control
+**Why only two layouts:**
+Because 47 layout options is how you end up with Visio. Center for brainstorming, top for hierarchies. Done.
 
-## 📄 License
+**Why Zustand over Redux:**
+Because Redux for a tree of nodes is like bringing a tank to a knife fight.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Maybe
 
-## 🙏 Acknowledgments
-
-- Inspired by modern mind mapping tools like MindMeister and XMind
-- Built with React, TypeScript, and Tailwind CSS
-- Special thanks to the open source community
-
----
-
-**MapItOut** - Transform your thoughts into structured knowledge maps.
+- Undo/redo stack
+- Better arrow key navigation 
+- Collapsible nodes
+- Multi-line text editing
+- SVG export option
+- Search nodes
+- Better colors/themes
