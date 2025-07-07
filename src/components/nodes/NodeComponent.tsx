@@ -10,25 +10,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMapStore } from '../../stores/map-store';
 import { useUIStore } from '../../stores/ui-store';
+import { getNodeColorInfo } from '../../utils/tier-colors';
 import type { Node, Position } from '../../types';
 
 interface NodeComponentProps {
   node: Node;
   position: Position;
   isSelected: boolean;
+  disableEditing?: boolean;
 }
 
 export const NodeComponent: React.FC<NodeComponentProps> = ({
   node,
   position,
   isSelected,
+  disableEditing = false,
 }) => {
-  const { updateNode, selectNode } = useMapStore();
+  const { updateNode, selectNode, nodes } = useMapStore();
   const { isEditing, editingNodeId, startEditing, stopEditing } = useUIStore();
   const [editText, setEditText] = useState(node.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isCurrentlyEditing = isEditing && editingNodeId === node.id;
+  
+  // Get tier-based color information
+  const colorInfo = getNodeColorInfo(node.id, nodes);
 
   // Focus textarea when editing starts
   useEffect(() => {
@@ -58,6 +64,7 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
+    if (disableEditing) return;
     e.stopPropagation();
     startEditing(node.id);
   };
@@ -94,67 +101,42 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
     }
   };
 
-  // Node styling
+  // Node positioning (only position and size in inline styles)
   const nodeStyle: React.CSSProperties = {
     position: 'absolute',
     left: position.x - (position.width / 2),
     top: position.y - (position.height / 2),
     width: position.width,
     height: position.height,
-    border: isSelected ? '2px solid #3b82f6' : '1px solid #64748b',
-    backgroundColor: isSelected ? '#1e293b' : '#334155',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    color: 'white',
-    fontSize: '14px',
-    lineHeight: '1.4',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    boxShadow: isSelected 
-      ? '0 4px 12px rgba(59, 130, 246, 0.3)' 
-      : '0 2px 8px rgba(0, 0, 0, 0.1)',
-    transform: isSelected ? 'scale(1.02)' : 'scale(1)',
     zIndex: isSelected ? 10 : 1,
   };
+
+  // CSS classes for styling
+  const nodeClasses = [
+    'node-base',
+    colorInfo.cssClass,
+    isSelected ? 'node-selected' : ''
+  ].filter(Boolean).join(' ');
 
   return (
     <div
       style={nodeStyle}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className="node-component"
+      className={nodeClasses}
     >
-      {isCurrentlyEditing ? (
+      {isCurrentlyEditing && !disableEditing ? (
         <textarea
           ref={textareaRef}
           value={editText}
           onChange={handleTextareaChange}
           onBlur={handleTextareaBlur}
           onKeyDown={handleTextareaKeyDown}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            outline: 'none',
-            background: 'transparent',
-            color: 'white',
-            fontSize: '14px',
-            lineHeight: '1.4',
-            resize: 'none',
-            fontFamily: 'inherit',
-          }}
+          className="node-textarea"
           placeholder="Enter text..."
         />
       ) : (
-        <div style={{ 
-          width: '100%', 
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          wordBreak: 'break-word',
-          overflowWrap: 'break-word',
-        }}>
+        <div className="node-text w-full h-full flex items-center justify-center">
           {node.text}
         </div>
       )}

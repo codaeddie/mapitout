@@ -1,0 +1,87 @@
+# MapItOut State Management & Persistence
+
+## Store Architecture
+MapItOut uses Zustand for state management with two main stores:
+
+### Map Store ([map-store.ts](mdc:src/stores/map-store.ts))
+- **Primary data**: nodes (Map), selectedId, layoutType
+- **Actions**: createNode, updateNode, selectNode, setLayoutType
+- **Persistence**: localStorage with custom Map serialization
+
+### UI Store ([ui-store.ts](mdc:src/stores/ui-store.ts))
+- **UI state**: isEditing, current editing node
+- **Actions**: startEditing, stopEditing
+- **No persistence**: UI state is session-only
+
+## Map Serialization Solution
+**Problem**: Zustand persist middleware doesn't handle Map objects properly - they get serialized as plain objects.
+
+**Solution**: Custom serialization in persist config:
+```typescript
+persist(
+  (set, get) => ({ /* store implementation */ }),
+  {
+    name: 'mapitout-store',
+    storage: createJSONStorage(() => localStorage),
+    // Serialize Map as array of entries
+    partialize: (state) => ({
+      nodes: Array.from(state.nodes.entries()),
+      layoutType: state.layoutType,
+    }),
+    // Always deserialize as Map, handle legacy formats
+    merge: (persisted, current) => {
+      let nodesArr = [];
+      const persistedObj = persisted as Record<string, any>;
+      if (Array.isArray(persistedObj.nodes)) {
+        nodesArr = persistedObj.nodes;
+      } else if (persistedObj.nodes && typeof persistedObj.nodes === 'object') {
+        // Handle legacy object format
+        nodesArr = Object.entries(persistedObj.nodes);
+      }
+      return {
+        nodes: new Map(nodesArr),
+        selectedId: persistedObj.selectedId ?? current.selectedId,
+        layoutType: persistedObj.layoutType ?? current.layoutType,
+        // Restore actions
+        createNode: current.createNode,
+        updateNode: current.updateNode,
+        selectNode: current.selectNode,
+        setLayoutType: current.setLayoutType,
+      };
+    },
+  }
+)
+```
+
+## Node Structure
+```typescript
+interface Node {
+  id: string;           // nanoid generated
+  text: string;         // user content
+  children: string[];   // array of child IDs
+  parent: string | null; // parent ID or null for root
+  metadata: {
+    created: number;    // timestamp
+    modified: number;   // timestamp
+    collapsed: boolean; // future feature
+  };
+}
+```
+
+## State Flow
+1. **Creation**: `createNode(parentId, text)` generates new node with nanoid
+2. **Updates**: `updateNode(id, updates)` modifies existing node
+3. **Selection**: `selectNode(id)` sets selectedId for UI highlighting
+4. **Persistence**: Automatic on state changes via Zustand middleware
+5. **Rehydration**: On app load, deserializes from localStorage
+
+## Key Features
+- **Automatic persistence** of node structure and layout preference
+- **Map serialization** handles complex data structures correctly
+- **Backward compatibility** with legacy storage formats
+- **Separation of concerns** between data and UI state
+- **Type safety** throughout the state management system
+description:
+globs:
+alwaysApply: false
+---

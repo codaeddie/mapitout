@@ -1,0 +1,115 @@
+# MapItOut Panning & Interaction System
+
+## Natural Panning (No Mode Toggle)
+The application uses natural panning like modern mapping tools, implemented in [MapCanvas.tsx](mdc:src/components/MapCanvas.tsx):
+
+### Middle Mouse Button Panning
+- **Middle mouse button**: Click and drag to pan the canvas
+- **No mode switching required**: Users can pan naturally without thinking about modes
+- **Always interactive**: Nodes remain selectable and editable during panning
+- **Smooth performance**: Uses CSS transforms for 60fps panning
+
+## Panning Implementation
+```typescript
+// State management (simplified)
+const [pan, setPan] = useState({ x: 0, y: 0 });
+const [isPanning, setIsPanning] = useState(false);
+
+// Middle mouse button detection
+const handleMouseDown = (e: React.MouseEvent) => {
+  if (e.button !== 1) return; // Middle mouse button only
+  // Pan logic...
+};
+```
+
+## Consistent Coordinate System
+**CRITICAL**: Always use a consistent coordinate system to avoid visual jumps:
+
+### Base Positions + CSS Transform Pattern
+- **Positions calculation**: Always returns base positions (no pan offset)
+- **CSS transform**: Always applies the pan offset via `translate(${pan.x}px, ${pan.y}px)`
+- **No conditional logic**: Never switch between different coordinate systems during drag
+
+```typescript
+// ✅ CORRECT: Always use base positions
+const positions = useMemo(() => {
+  const base = calculateLayout(nodes, layoutType);
+  return base; // Always base positions
+}, [nodes, layoutType, canvasSize]);
+
+// ✅ CORRECT: Always apply pan via CSS transform
+<div style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+  {/* Node components */}
+</div>
+
+// ✅ CORRECT: Update pan state directly during drag
+const handleMouseMove = (e: React.MouseEvent) => {
+  if (!isPanning) return;
+  const dx = e.clientX - mouseStart.current.x;
+  const dy = e.clientY - mouseStart.current.y;
+  
+  const newPan = {
+    x: panStart.current.x + dx,
+    y: panStart.current.y + dy
+  };
+  setPan(newPan); // Updates CSS transform automatically
+};
+```
+
+### Anti-Patterns to Avoid
+```typescript
+// ❌ WRONG: Switching coordinate systems during drag
+const positions = useMemo(() => {
+  if (isPanning) {
+    return base; // Base positions during drag
+  } else {
+    return withPan; // Pan offset in positions when not dragging
+  }
+}, [nodes, layoutType, pan, isPanning]);
+
+// ❌ WRONG: Conditional CSS transform
+<div style={{ 
+  transform: !isPanning ? `translate(${pan.x}px, ${pan.y}px)` : undefined 
+}}>
+
+// ❌ WRONG: Manual transform manipulation during drag
+if (containerRef.current) {
+  containerRef.current.style.transform = `translate(${panStart.current.x + dx}px, ${panStart.current.y + dy}px)`;
+}
+```
+
+## Centering System
+- **Home Button (🏠)**: Always centers on root node
+- **Root-based**: Always uses root node's calculated position as reference
+- **Dynamic**: Adapts to current canvas size
+
+```typescript
+const centerOnRoot = () => {
+  const rootNode = Array.from(nodes.values()).find(node => node.parent === null);
+  const positions = calculateLayout(nodes, layoutType);
+  const rootPosition = positions.get(rootNode.id);
+  const canvasCenter = { 
+    x: canvasSize.width / 2, 
+    y: canvasSize.height / 2 
+  };
+  const newPan = {
+    x: canvasCenter.x - rootPosition.x,
+    y: canvasCenter.y - rootPosition.y
+  };
+  setPan(newPan);
+};
+```
+
+## Dynamic Canvas Sizing
+- Canvas automatically resizes to browser window dimensions
+- Centering calculations adapt to current window size
+- Maintains functionality across all screen sizes
+- Updates on window resize events
+
+## User Experience
+- **Natural interaction**: Middle mouse to pan (like tldraw, excalidraw)
+- **No cognitive load**: No mode switching required
+- **Always functional**: Nodes always selectable and editable
+- **Smooth performance**: CSS transform-based panning
+- **Clear visual feedback**: Grab/grabbing cursors during panning
+- **No visual jumps**: Consistent coordinate system prevents bouncing

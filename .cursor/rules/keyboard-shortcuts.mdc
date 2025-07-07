@@ -2,14 +2,35 @@
 
 Keyboard navigation and editing is handled in [use-keyboard-navigation.ts](mdc:src/hooks/use-keyboard-navigation.ts):
 
+## Node Creation & Editing
 - **Tab**: Create child node of selected node
 - **Enter**: Create sibling node (same parent as selected)
 - **Shift+Space**: Edit selected node (same as double-click)
 - **Escape**: Deselect node
-- **Delete/Backspace**: Delete selected node and its children
+
+## Node Management
+- **Delete/Backspace**: Delete selected node and its children (recursive deletion)
+
+## Navigation
 - **Arrow keys**: Navigate between nodes (basic tier/sibling navigation)
 
-Shortcuts are only active when not editing text. Editing state is managed by [ui-store.ts](mdc:src/stores/ui-store.ts).
+## Automatic Centering
+- **Auto-center**: Camera automatically centers on selected node
+- **Seamless workflow**: No manual centering needed during rapid node creation
+
+## Important Notes
+- Shortcuts are only active when not editing text or in input fields
+- Editing state is managed by [ui-store.ts](mdc:src/stores/ui-store.ts)
+- Keyboard navigation is disabled in Hand (panning) mode
+- All shortcuts respect the current editing state and don't interfere with text input
+- Camera automatically follows the selected node for optimal workflow
+
+## Implementation Details
+- Uses `useKeyboardNavigation()` hook in MapCanvas
+- Prevents default browser behavior for handled keys
+- Checks for contentEditable elements to avoid conflicts
+- Integrates with the node selection system from map-store
+- Automatic centering implemented via useEffect watching selectedId changes
 description:
 globs:
 alwaysApply: false

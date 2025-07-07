@@ -1,13 +1,29 @@
 # MapItOut Layout Engine Philosophy
 
-- Node positions are always calculated on render, never stored in node data.
-- Two layouts only: center (mind map) and top (tree), implemented in [layout-engines.ts](mdc:src/utils/layout-engines.ts).
-- Layouts use parent/child relationships to determine node positions.
-- Center layout: root at center, children alternate left/right, tiers radiate outward.
-- Top layout: root at top, children in rows below, even horizontal distribution.
-- All connection lines (if enabled) are drawn from node center to node center.
-- No manual positioning or drag-and-drop; structure is permanent, position is temporary.
-description:
-globs:
-alwaysApply: false
----
+## Core Principles
+- Node positions are always calculated on render, never stored in node data
+- Two layouts only: center (mind map) and top (tree), implemented in [layout-engines.ts](mdc:src/utils/layout-engines.ts)
+- Layouts use parent/child relationships to determine node positions
+- No manual positioning or drag-and-drop; structure is permanent, position is temporary
+
+## Layout Types
+- **Center layout**: root at center, children alternate left/right, tiers radiate outward
+- **Top layout**: root at top, children in rows below, even horizontal distribution
+
+## Positioning System
+- Base positions calculated by layout engine
+- Pan offset applied to all positions for camera movement
+- Dynamic canvas sizing affects centering calculations
+- Root node is always the reference point for centering operations
+
+## Rendering Pipeline
+1. Calculate base positions using `calculateLayout(nodes, layoutType)`
+2. Apply pan offset to all positions: `{ x: pos.x + pan.x, y: pos.y + pan.y }`
+3. Render nodes at final calculated positions
+4. All connection lines (if enabled) drawn from node center to node center
+
+## Integration with Features
+- **Panning**: Pan offset applied to all calculated positions
+- **Centering**: Always centers on root node's calculated position
+- **Dynamic Canvas**: Layout calculations respect current canvas dimensions
+- **Persistence**: Only node structure persists, positions recalculated on load

@@ -1,20 +1,35 @@
 # MapItOut Project Structure Guide
 
-- [src/components/MapCanvas.tsx](mdc:src/components/MapCanvas.tsx): Main canvas, toolbar, and help popover. Handles rendering, layout, and UI.
-- [src/components/nodes/NodeComponent.tsx](mdc:src/components/nodes/NodeComponent.tsx): Renders individual nodes, selection, and editing.
+## Core Components
+- [src/components/MapCanvas.tsx](mdc:src/components/MapCanvas.tsx): Main canvas with toolbar, panning, centering, and help popover. Handles rendering, layout, and UI interactions.
+- [src/components/nodes/NodeComponent.tsx](mdc:src/components/nodes/NodeComponent.tsx): Renders individual nodes, selection, and editing. Supports disabling in hand mode.
 - [src/components/ui/LayoutSwitcher.tsx](mdc:src/components/ui/LayoutSwitcher.tsx): Layout toggle (center/top).
+
+## State Management
 - [src/hooks/use-keyboard-navigation.ts](mdc:src/hooks/use-keyboard-navigation.ts): Keyboard shortcuts (Tab, Enter, Shift+Space, etc).
-- [src/stores/map-store.ts](mdc:src/stores/map-store.ts): Zustand store for map data (nodes, selection, layout).
+- [src/stores/map-store.ts](mdc:src/stores/map-store.ts): Zustand store for map data (nodes, selection, layout). Includes persistence with Map serialization.
 - [src/stores/ui-store.ts](mdc:src/stores/ui-store.ts): Zustand store for UI state (editing, etc).
+
+## Layout & Positioning
 - [src/utils/layout-engines.ts](mdc:src/utils/layout-engines.ts): Layout algorithms for node positioning.
 - [src/types/index.ts](mdc:src/types/index.ts): TypeScript interfaces for nodes, positions, and state.
 
-**Philosophy:**
+## Key Features Implemented
+- **Panning System**: Mouse/Hand mode toggle with pan state and mouse event handling
+- **Centering**: Home button (🏠) and auto-center on mouse mode switch, always centers on root node
+- **Dynamic Canvas**: Canvas resizes to browser window size with responsive centering logic
+- **Keyboard Navigation**: Full keyboard shortcuts for creation, editing, and navigation
+- **Persistence**: Map data persists to localStorage with proper Map serialization
+- **Export**: High-quality PNG export functionality
+
+## Architecture Philosophy
 - Nodes store only structure (id, text, parent, children, metadata)
 - Positions are always calculated, never stored
 - Only two layouts: center (mind map) and top (tree)
 - Keyboard-driven creation and editing
-- Minimal, professional UI
+- Root node is always the centering reference point
+- Canvas dynamically adapts to window size
+- Minimal, professional UI with hover-based help
 description:
 globs:
 alwaysApply: false

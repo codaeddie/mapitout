@@ -1,0 +1,87 @@
+# MapItOut Troubleshooting Guide
+
+## Common Issues & Solutions
+
+### 1. "nodes.values is not a function" Error
+**Cause**: Zustand persist middleware serializes Map objects as plain objects in localStorage.
+
+**Solution**: Custom serialization in [map-store.ts](mdc:src/stores/map-store.ts):
+- Use `partialize` to serialize Map as array of entries
+- Use `merge` to always deserialize as Map object
+- Handle legacy storage formats for backward compatibility
+
+### 2. Blank Screen / No Nodes Visible
+**Causes & Solutions**:
+- **No root node**: App creates "Start Here" node automatically when `nodes.size === 0`
+- **Rendering issues**: Check browser console for React errors
+- **Canvas sizing**: Ensure canvas dimensions are set correctly
+
+### 3. Keyboard Shortcuts Not Working
+**Causes & Solutions**:
+- **In editing mode**: Shortcuts disabled during text editing
+- **Hand mode**: Keyboard navigation disabled in panning mode
+- **Focus issues**: Ensure MapCanvas div has focus (`tabIndex={0}`)
+- **Input conflicts**: Check for contentEditable elements interfering
+
+### 4. Panning Not Working
+**Causes & Solutions**:
+- **Wrong mode**: Ensure in Hand mode (🖐️) not Mouse mode (🖱️)
+- **Event conflicts**: Check for elements with higher z-index blocking mouse events
+- **Canvas sizing**: Verify canvas dimensions match window size
+
+### 5. Centering Issues
+**Causes & Solutions**:
+- **No root node**: Centering requires a root node (parent: null)
+- **Layout calculation**: Ensure `calculateLayout` returns valid positions
+- **Canvas size**: Verify `canvasSize` state reflects actual window dimensions
+
+## Development Best Practices
+
+### State Management
+- Always use Map for nodes, never plain objects
+- Serialize/deserialize properly for persistence
+- Separate data state (map-store) from UI state (ui-store)
+
+### Component Architecture
+- Keep positioning logic in layout engines
+- Apply pan offset in rendering, not in layout calculation
+- Use useMemo for expensive position calculations
+
+### Event Handling
+- Prevent default for handled keyboard events
+- Check for input/contentEditable conflicts
+- Use proper event cleanup in useEffect
+
+### Performance
+- Debounce resize events if needed
+- Use useMemo for position calculations
+- Avoid storing positions in state
+
+## Debugging Tips
+
+### Console Commands
+```javascript
+// Check current state
+console.log(useMapStore.getState());
+
+// Check localStorage
+console.log(localStorage.getItem('mapitout-store'));
+
+// Check if nodes is a Map
+console.log(useMapStore.getState().nodes instanceof Map);
+```
+
+### React DevTools
+- Check Zustand store state
+- Verify component re-renders
+- Monitor state changes
+
+### Browser DevTools
+- Check for console errors
+- Verify event listeners
+- Inspect canvas dimensions
+- Check localStorage content
+description:
+globs:
+alwaysApply: false
+---

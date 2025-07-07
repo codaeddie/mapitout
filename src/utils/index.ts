@@ -7,4 +7,8 @@
  * Update when: Adding new utilities or modifying utility exports.
  */
 
-// Export utilities are now handled directly in MapCanvas component 
+// Export layout engines
+export * from './layout-engines';
+
+// Export tier-based color utilities
+export * from './tier-colors'; 

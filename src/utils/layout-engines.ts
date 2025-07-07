@@ -1,10 +1,10 @@
 /**
  * MapItOut Layout Engines
- *
+ * 
  * This module provides two layout algorithms:
  * - Center Layout: Mind map style, root in center, children alternate left/right
  * - Top Layout: Hierarchical tree, root at top, children in rows below
- *
+ * 
  * Update when: Adding new layouts or modifying layout logic.
  */
 
@@ -21,8 +21,8 @@ const MIN_NODE_SPACING = 60;
 
 function getNodeWidth(text: string): number {
   return Math.max(100, text.length * 8);
-}
-
+  }
+  
 function getNodeHeight(): number {
   return 40;
 }
@@ -40,7 +40,7 @@ export function calculateCenterLayout(nodes: Map<string, Node>): Map<string, Pos
   // Find root (no parent)
   const rootNode = Array.from(nodes.values()).find(n => n.parent === null);
   if (!rootNode) return positions;
-
+    
   // Place root at center
   positions.set(rootNode.id, {
     x: CANVAS_CENTER_X,
@@ -86,9 +86,9 @@ export function calculateCenterLayout(nodes: Map<string, Node>): Map<string, Pos
           height: getNodeHeight(),
         });
         positionTier(child.id, tier + 1, currentSide);
-      });
-    }
+    });
   }
+}
 
   positionTier(rootNode.id, 1, null);
   return positions;
@@ -107,7 +107,7 @@ export function calculateTopLayout(nodes: Map<string, Node>): Map<string, Positi
   // Find root (no parent)
   const rootNode = Array.from(nodes.values()).find(n => n.parent === null);
   if (!rootNode) return positions;
-
+        
   // Build depth map
   const depthMap = new Map<string, number>();
   function assignDepth(node: Node, depth: number) {
@@ -118,7 +118,7 @@ export function calculateTopLayout(nodes: Map<string, Node>): Map<string, Positi
     });
   }
   assignDepth(rootNode, 0);
-
+    
   // Group nodes by depth
   const maxDepth = Math.max(...depthMap.values());
   for (let depth = 0; depth <= maxDepth; depth++) {

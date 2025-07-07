@@ -34,12 +34,13 @@
     @apply border-white shadow-lg scale-105;
   }
   
-  .node-category-0 { @apply border-orange-500 bg-orange-500/10; }
-  .node-category-1 { @apply border-red-500 bg-red-500/10; }
-  .node-category-2 { @apply border-blue-500 bg-blue-500/10; }
-  .node-category-3 { @apply border-green-500 bg-green-500/10; }
-  .node-category-4 { @apply border-purple-500 bg-purple-500/10; }
-  .node-category-5 { @apply border-amber-500 bg-amber-500/10; }
+  /* Tier-based node colors */
+  .node-tier-h1h2 { @apply border-orange-500 bg-orange-500/10; }
+  .node-tier-h3 { @apply border-red-500 bg-red-500/10; }
+  .node-tier-h4 { @apply border-blue-500 bg-blue-500/10; }
+  .node-tier-h5 { @apply border-green-500 bg-green-500/10; }
+  .node-tier-h6 { @apply border-purple-500 bg-purple-500/10; }
+  .node-tier-h7plus { @apply border-amber-500 bg-amber-500/10; }
   
   /* Manual position styling */
   .node-manual-position {
